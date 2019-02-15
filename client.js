@@ -9,7 +9,7 @@ console.log(auth);
 var header = { "Authorization":auth };
 
 var msgId = 1;
-var idTag = "00001234"; //"App-apVkYs5n4/meo";
+var idTag = "App-apVkYs5n4/meo";//"00001234"; //
 
 ws = new WebSocket(url, "ocpp1.6", {headers : { Authorization: auth } });
 			
@@ -28,8 +28,8 @@ ws.on("message", function incoming(data) {
 	console.log(JSON.parse(data));
 	if (JSON.parse(data)[2].status == "Accepted") {
 		msgId = msgId + 1;
-		/*var currentDate = new Date();
-		var stpTra = [2, msgId.toString(), "StopTransaction", {"connectorId":"1", "meterStop":1200, "idTag":idTag, "timestamp":currentDate.toISOString(), "transactionId": 23}];
+		var currentDate = new Date();
+		var stpTra = [2, msgId.toString(), "StopTransaction", {"connectorId":"1", "meterStop":1200, "idTag":idTag, "timestamp":currentDate.toISOString(), "transactionId": 44}];
 							ws.send(JSON.stringify(stpTra), function ack(error) {
 								var snVal = [2, msgId.toString(), "StatusNotification", {"connectorId":"1", "errorCode":"NoError", "status":"Finishing"}];
 								ws.send(JSON.stringify(snVal), function ack(error) { 
@@ -38,12 +38,12 @@ ws.on("message", function incoming(data) {
 									
 									});
 								});
-							});*/
+							});/*
 		var ocppAuth = [2, msgId.toString(), "Authorize", {"idTag":"00001234"}];//"App-apVkYs5n4/meo"}];
 		ws.send(JSON.stringify(ocppAuth), function ack(error) {
 			msgId = msgId + 1;
 			var currentDate = new Date();
-			var startTra = [2, msgId.toString(), "StartTransaction", {"connectorId":"1", "meterStart":"0", "idTag":idTag, "timestamp":currentDate.toISOString()}];
+			var startTra = [2, msgId.toString(), "StartTransaction", {"connectorId":"1", "meterStart":"0", "idTag":idTag, "reservationId":0, "timestamp":currentDate.toISOString()}];
 			ws.send(JSON.stringify(startTra), function ack(error) {
 				msgId = msgId + 1;
 				var snVal = [2, msgId.toString(), "StatusNotification", {"connectorId":"1", "errorCode":"NoError", "status":"Charging"}];
@@ -74,7 +74,7 @@ ws.on("message", function incoming(data) {
 					}, 60000);
 				});
 			});
-		});
+		});*/
 	}
 });
 
