@@ -4,12 +4,16 @@
   "description": "test client ocpp",
   "main": "client.js",
   "dependencies": {
+    "express": "^4.16.4",
     "nodejs": "^0.0.0",
     "websocket": "^1.0.28",
     "ws": "^6.1.2"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "nodemon": "^1.18.10"
+  },
   "scripts": {
+    "start": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Matth",

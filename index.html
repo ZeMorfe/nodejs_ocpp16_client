@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>OCPP Client</title>
+
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <style>
+            body { padding-top:50px; }
+        </style>
+    </head>
+    <body>
+
+        <div class="container">
+            <div class="jumbotron">
+                <h2>OCPP client simulator</h2>
+            </div>
+
+            <div style='padding:20px'>
+                <h4>Station 1</h4>
+                <!-- React component -->
+                <div id='boot_button_container'></div>
+
+                <h4>Station 2</h4>
+            </div>
+        </div>
+
+    </body>
+
+    <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+
+    <script type="text/babel" src="js/ConnectButton.js"></script>
+</html>
