@@ -1,7 +1,9 @@
 const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
-const connectToServer = require('./libs/connectToServer');
+const OCPPClient = require('./libs/ocppClient');
+const chargePointRequests = require('./libs/chargePointRequests');
+const CP = require('./data/chargepoints');
 
 const app = express();
 
@@ -18,7 +20,12 @@ const server = app.listen(5000);
 const wss = new WebSocket.Server({ server, path: "/simulator" });
 
 wss.on('connection', (ws) => {
-    console.log('connected');
+    console.log('connected to simulator');
+
+    const {
+        ws: wsOcppClient,
+        getMsgId
+    } = OCPPClient(CP[0]);
 
     ws.on('close', () => {
         console.log('closed');
@@ -26,7 +33,11 @@ wss.on('connection', (ws) => {
     ws.on('message', (msg) => {
         console.log(msg);
         if (msg === 'BOOT') {
-            connectToServer();
+            chargePointRequests(wsOcppClient, getMsgId()).bootNotification(
+                CP[0]['props']
+            );
+        } else if (msg === 'AUTHORIZE') {
+            chargePointRequests(wsOcppClient, getMsgId()).authorize();
         }
     })
 })
