@@ -1,8 +1,19 @@
 const WebSocket = require('ws');
+const config = require('../config');
 
-
-function OCPPClient({ server, auth, cpProps }, idTag) {
+function OCPPClient(CP, handleConf=()=>{}) {
     let msgId = 1;
+
+    const server = `${config.OCPPServer}/${CP['name']}`;
+    const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
+
+    function getMsgId() {
+        return msgId.toString();
+    }
+
+    function incMsgId() {
+        msgId += 1;
+    }
 
     const ws = new WebSocket(
         server,
@@ -11,17 +22,7 @@ function OCPPClient({ server, auth, cpProps }, idTag) {
     );
 
     ws.on('open', function open() {
-        msgId += 1;
-        const bootNot = [
-            2,
-            msgId.toString(),
-            "BootNotification",
-            cpProps
-        ];
-
-        ws.send(JSON.stringify(bootNot), function ack(error) { 
-            console.log('error', error);
-        });
+        console.log('ws client open');
     });
 
     ws.on("message", function incoming(data) {
@@ -30,9 +31,10 @@ function OCPPClient({ server, auth, cpProps }, idTag) {
         // if (JSON.parse(data)[2].status == "Accepted") {
         //     console.log('Accepted')
         // }
+        handleConf(data);
     })
 
-    return ws;
+    return { ws, getMsgId };
 }
 
 module.exports = OCPPClient;
