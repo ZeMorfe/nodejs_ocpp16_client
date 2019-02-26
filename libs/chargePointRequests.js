@@ -1,25 +1,20 @@
-const chargePointRequests = (ws, msgId) => {
-    const idTag = '3keu9ba';
-    return {
-        bootNotification: (cpProps) => {
-            const bootNot = [
-                2,
-                msgId,
-                "BootNotification",
-                cpProps
-            ];
+const { VALID_ACTIONS } = require('./ocpp');
 
-            ws.send(JSON.stringify(bootNot), function ack(error) { 
-                console.log('error', error);
-            });
-        },
-        authorize: () => {
-            const auth = [2, msgId, "Authorize", { idTag }];
-            ws.send(JSON.stringify(auth), (res) => {
-                console.log('auth', res);
-            });
-        }
-    };
+const chargePointRequests = (ws, msgId, action, payload) => {
+    const messageType = 2;
+    const req = [messageType, msgId, action, payload];
+
+    const isValidAction = VALID_ACTIONS.includes(action);
+    const isValidPayload = true;
+
+    if (isValidAction && isValidPayload) {
+        ws.send(JSON.stringify(req), (error) => {
+            if (error) console.log('Error when calling OCPP server', error);
+            else console.log('Message sent');
+        });
+    } else {
+        console.log('Invalid action or payload');
+    }
 }
 
 module.exports = chargePointRequests;

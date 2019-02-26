@@ -33,15 +33,12 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         console.log('closed');
-    })
+    });
+
     ws.on('message', (msg) => {
-        console.log(msg);
-        if (msg === 'BOOT') {
-            chargePointRequests(wsOcppClient, getMsgId()).bootNotification(
-                CP[1]['props']
-            );
-        } else if (msg === 'AUTHORIZE') {
-            chargePointRequests(wsOcppClient, getMsgId()).authorize();
-        }
-    })
+        const [action, payload] = JSON.parse(msg);
+        console.log([action, payload]);
+
+        chargePointRequests(wsOcppClient, getMsgId(), action, payload);
+    });
 })
