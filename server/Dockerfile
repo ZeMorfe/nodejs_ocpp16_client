@@ -30,6 +30,13 @@ RUN mkdir build
 WORKDIR /libwebsockets-2.4-stable/build
 RUN cmake .. && make && make install
 
+# SOAP, if needed
+# WORKDIR /
+# RUN wget https://sourceforge.net/projects/gsoap2/files/latest/download && \
+#     unzip download
+# WORKDIR /gsoap-2.8
+# RUN ./configure && make && make install
+
 WORKDIR /
 
 COPY ./ocpp /ocpp
