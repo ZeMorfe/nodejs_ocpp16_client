@@ -1,4 +1,4 @@
-const chargePointRequests = require('./chargePointRequests');
+const requestHandler = require('./requestHandler');
 
 function responseHandler(wsBrowser, wsOcppClient, response) {
     function handleCall() {

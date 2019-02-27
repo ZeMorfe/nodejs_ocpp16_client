@@ -3,7 +3,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const { partial } = require('lodash');
 const OCPPClient = require('./libs/ocppClient');
-const chargePointRequests = require('./libs/chargePointRequests');
+const requestHandler = require('./libs/requestHandler');
 const CP = require('./data/chargepoints');
 const responseHandler = require('./libs/responseHandler');
 
@@ -14,31 +14,43 @@ app.get('/', function(req, res, next) {
     res.sendFile(path.join(__dirname + '/index.html'));
 });
 
-app.get('/js/ConnectButton.js', function(req, res) {
-    res.sendFile(path.join(__dirname + '/js/ConnectButton.js'));
+app.get('/js/Station.js', function(req, res) {
+    res.sendFile(path.join(__dirname + '/js/Station.js'));
+});
+
+app.get('/js/Button.js', function(req, res) {
+    res.sendFile(path.join(__dirname + '/js/Button.js'));
 });
 
 const server = app.listen(5000);
-const wss = new WebSocket.Server({ server, path: "/simulator" });
 
-wss.on('connection', (ws) => {
-    console.log('connected to simulator');
+spawnClient('/simulator', 0);
+// spawnClient('/simulator', 2);
 
-    const resHandler = partial(responseHandler, ws);
+function spawnClient(endpoint, stationId) {
+    const wss = new WebSocket.Server({ server, path: endpoint + stationId });
 
-    const {
-        ws: wsOcppClient,
-        getMsgId
-    } = OCPPClient(CP[1], resHandler);
+    wss.on('connection', (ws) => {
+        console.log(`connected to ${endpoint + stationId}`);
 
-    ws.on('close', () => {
-        console.log('closed');
+        const resHandler = partial(responseHandler, ws);
+
+        const {
+            ws: wsOcppClient,
+            getMsgId
+        } = OCPPClient(CP[stationId], resHandler);
+
+        // send station info to the UI
+        // ws.send(JSON.stringify(CP[stationId]));
+
+        ws.on('close', () => {
+            console.log('closed');
+        });
+
+        ws.on('message', (msg) => {
+            console.log(JSON.parse(msg));
+
+            requestHandler(wsOcppClient, getMsgId(), stationId, JSON.parse(msg));
+        });
     });
-
-    ws.on('message', (msg) => {
-        const [action, payload] = JSON.parse(msg);
-        console.log([action, payload]);
-
-        chargePointRequests(wsOcppClient, getMsgId(), action, payload);
-    });
-})
+}
