@@ -6,6 +6,8 @@ const { MESSAGE_TYPE } = require('./ocpp');
 function OCPPClient(CP, responseHandler) {
     let msgId = 1;
     let logs = [];
+    let activeTransaction;
+    let queue = [];
 
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
@@ -26,6 +28,26 @@ function OCPPClient(CP, responseHandler) {
         return logs;
     }
 
+    function getActiveTransaction() {
+        return activeTransaction;
+    }
+
+    function setActiveTransaction(transaction) {
+        activeTransaction = transaction;
+    }
+
+    function getQueue() {
+        return queue;
+    }
+
+    function addToQueue(job) {
+        queue.push(job);
+    }
+
+    function popQueue(id) {
+        queue = queue.filter(q => q.msgId !== id);
+    }
+
     const ws = new WebSocket(
         server,
         'ocpp1.6',
@@ -39,19 +61,23 @@ function OCPPClient(CP, responseHandler) {
     });
 
     ws.on("message", function incoming(data) {
-        console.log('from server:', data);
+        console.log('From OCPP server:', data);
         const response = JSON.parse(data);
         const [messageType] = response;
         const messageTypeText = MESSAGE_TYPE[`${messageType}`] || undefined;
+
+        addLog(response);
 
         switch (messageTypeText) {
             case 'CALL':
                 resHandler(response).handleCall();
                 break;
             case 'CALLRESULT':
-                addLog(response);
                 incMsgId();
-                resHandler(response).handleCallResult();
+                resHandler(response).handleCallResult(
+                    { queue, activeTransaction },
+                    { popQueue, setActiveTransaction }
+                );
                 break;
             case 'CALLERROR':
                 console.log('Error', response);
@@ -61,9 +87,11 @@ function OCPPClient(CP, responseHandler) {
             default:
                 console.log('Unknown message type');
         }
-    })
+    });
 
-    return { ws, getMsgId, getLogs };
+    ws.on('error', (error) => console.log(error));
+
+    return { ws, getMsgId, getLogs, getQueue, addToQueue, getActiveTransaction, setActiveTransaction };
 }
 
 module.exports = OCPPClient;

@@ -23,7 +23,7 @@ function composeMessage(action) {
             break;
         case 'StopTransaction':
             // need client to handle transactionId
-            message = [action, { connectorId: 1, idTag }];
+            message = [action, { connectorId: 1, idTag, reason: 'Local' }];
             break;
         case 'StatusNotification':
         default:
@@ -55,6 +55,12 @@ const Station = ({ stationId }) => {
             const ws = new WebSocket('ws://localhost:5000/simulator' + stationId);
             setSocket(ws);
         }
+
+        // if (socket) {
+        //     socket.on('message', (message) => {
+        //         console.log('From client server', message);
+        //     })
+        // }
 
         return () => { if (socket) socket.close() };
     })
