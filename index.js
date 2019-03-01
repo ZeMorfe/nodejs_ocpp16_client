@@ -14,12 +14,24 @@ app.get('/', function(req, res, next) {
     res.sendFile(path.join(__dirname + '/index.html'));
 });
 
+app.get('/js/App.js', function(req, res) {
+    res.sendFile(path.join(__dirname + '/js/App.js'));
+});
+
 app.get('/js/Station.js', function(req, res) {
     res.sendFile(path.join(__dirname + '/js/Station.js'));
 });
 
 app.get('/js/Button.js', function(req, res) {
     res.sendFile(path.join(__dirname + '/js/Button.js'));
+});
+
+app.get('/js/Card.js', function(req, res) {
+    res.sendFile(path.join(__dirname + '/js/Card.js'));
+});
+
+app.get('/js/Logs.js', function(req, res) {
+    res.sendFile(path.join(__dirname + '/js/Logs.js'));
 });
 
 const server = app.listen(5000);
@@ -38,7 +50,7 @@ function spawnClient(endpoint, stationId) {
         const ocppClient = OCPPClient(CP[stationId], resHandler);
 
         // send station info to the UI
-        // ws.send(JSON.stringify(CP[stationId]));
+        ws.send(JSON.stringify(['Startup', CP[stationId]]));
 
         ws.on('close', () => {
             console.log('closed');
@@ -50,7 +62,7 @@ function spawnClient(endpoint, stationId) {
             const msgFromUI = JSON.parse(raw);
             console.log(msgFromUI);
 
-            requestHandler(stationId, msgFromUI, ocppClient);
+            requestHandler(stationId, msgFromUI, ocppClient, ws);
         });
     });
 }

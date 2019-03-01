@@ -20,8 +20,8 @@ function OCPPClient(CP, responseHandler) {
         msgId += 1;
     }
 
-    function addLog(response) {
-        logs.push([new Date(), response]);
+    function addLog(type, response) {
+        logs.push([type, new Date(), response]);
     }
 
     function getLogs() {
@@ -54,7 +54,7 @@ function OCPPClient(CP, responseHandler) {
         { headers: { Authorization: auth }}
     );
 
-    const resHandler = partial(responseHandler, ws);
+    const resHandler = partial(responseHandler, ws ,getLogs);
 
     ws.on('open', function open() {
         console.log('ws client open');
@@ -66,7 +66,7 @@ function OCPPClient(CP, responseHandler) {
         const [messageType] = response;
         const messageTypeText = MESSAGE_TYPE[`${messageType}`] || undefined;
 
-        addLog(response);
+        addLog('CONF', response);
 
         switch (messageTypeText) {
             case 'CALL':

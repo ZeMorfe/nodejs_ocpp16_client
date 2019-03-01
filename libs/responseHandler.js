@@ -1,8 +1,10 @@
 const requestHandler = require('./requestHandler');
 
-function responseHandler(wsBrowser, wsOcppClient, response) {
+function responseHandler(wsBrowser, wsOcppClient, getLogs, response) {
     function handleCall() {
         console.log('Handling server call');
+
+        wsBrowser.send(JSON.stringify(['OCPP', getLogs()]));
 
         const [messageType, messageId, action, payload] = response;
 
@@ -13,6 +15,9 @@ function responseHandler(wsBrowser, wsOcppClient, response) {
 
     function handleCallResult(states, setStates) {
         console.log('Handling call result');
+
+        wsBrowser.send(JSON.stringify(['OCPP', getLogs()]));
+
         const [messageType, messageId, payload] = response;
         // req action waiting for conf
         const pending = states.queue.find(q => q.messageId === messageId);
@@ -34,6 +39,8 @@ function responseHandler(wsBrowser, wsOcppClient, response) {
 
     function handleCallError() {
         console.log('Handling call error');
+
+        wsBrowser.send(JSON.stringify(['OCPP', getLogs()]));
     }
 
     return { handleCall, handleCallResult, handleCallError };
@@ -49,7 +56,7 @@ const callResulthandler = (wsBrowser, pending, setStates) => {
                 setStates.setActiveTransaction({ ...pending, transactionId });
             }
             // notify the UI
-            wsBrowser.send([`${action}Conf`, isAccepted]);
+            wsBrowser.send(JSON.stringify([`${action}Conf`, isAccepted]));
         },
         'StopTransaction': ({ idTagInfo: { status } }) => {
             const isAccepted = status === 'Accepted';
@@ -57,7 +64,7 @@ const callResulthandler = (wsBrowser, pending, setStates) => {
                 setStates.setActiveTransaction(undefined);
             }
             // notify the UI
-            wsBrowser.send([`${action}Conf`, isAccepted]);
+            wsBrowser.send(JSON.stringify([`${action}Conf`, isAccepted]));
         }
     };
 };

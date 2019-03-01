@@ -5,7 +5,8 @@ const CP = require('../data/chargepoints');
 const requestHandler = (
     stationId,
     messageFromUI,
-    { ws, getMsgId, getQueue, addToQueue, getActiveTransaction, addLog }
+    { ws, getMsgId, getQueue, addToQueue, getActiveTransaction, addLog, getLogs },
+    wsUI
 ) => {
     const messageType = 2;
     const [action] = messageFromUI;
@@ -28,7 +29,10 @@ const requestHandler = (
             // requests await conf from server are added to queue
             addToQueue(pendingReq);
 
-            addLog(req);
+            addLog('REQ', req);
+
+            // send to logs in UI
+            wsUI.send(JSON.stringify(['OCPP', getLogs()]));
         });
     } else {
         console.log('Invalid action or payload');
@@ -38,6 +42,9 @@ const requestHandler = (
 function getPayload(stationId, [action, payloadFromStation = {}], extras) {
     let payload = {}, timestamp;
     switch (action) {
+        case 'Authorize':
+            payload = { ...payloadFromStation };
+            break;
         case 'BootNotification':
             payload = { ...CP[stationId].props, ...payloadFromStation };
             break;

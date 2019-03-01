@@ -33,8 +33,13 @@ function composeMessage(action) {
     return message;
 }
 
-const Station = ({ stationId }) => {
-    const [socket, setSocket] = React.useState(undefined);
+window.Station = ({ stationId }) => {
+    const [socket, setSocket] = React.useState();
+    const [online, setOnline] = React.useState();
+    const [stationProps, setStationProps] = React.useState(stationId);
+    const [message, setMessage] = React.useState();
+    const [logs, setLogs] = React.useState([]);
+    const [charging, setCharging] = React.useState(false);
 
     const handleClick = (event) => {
         console.log(event.target.value);
@@ -51,31 +56,64 @@ const Station = ({ stationId }) => {
     };
 
     React.useEffect(() => {
-        if (!socket) {
-            const ws = new WebSocket('ws://localhost:5000/simulator' + stationId);
-            setSocket(ws);
-        }
+        const ws = new WebSocket('ws://localhost:5000/simulator' + stationId);
+        setSocket(ws);
 
-        // if (socket) {
-        //     socket.on('message', (message) => {
-        //         console.log('From client server', message);
-        //     })
-        // }
+        ws.onopen = () => {
+            console.log('Connection open');
+            setOnline(true);
+        };
+        ws.onmessage = (message) => {
+            let data = JSON.parse(message.data)
+            console.log('From client server', data);
+            setMessage(data);
 
-        return () => { if (socket) socket.close() };
-    })
+            if (data[0] === 'Startup') {
+                setStationProps(data[1]);
+            } else if (data[0] === 'OCPP') {
+                setLogs(data[1]);
+            } else if (data[0] === 'StartTransactionConf') {
+                setCharging(data[1])
+            } else if (data[0] === 'StopTransactionConf') {
+                setCharging(!data[1])
+            }
+        };
+        ws.onclose = () => {
+            console.log('Connection closed');
+            setOnline(false);
+        };
+
+        return () => { ws.close() };
+    }, []);
+
+    const status = {
+        header: stationProps.name,
+        status: `Status: ${online ? 'online' : 'offline'}`,
+        charging
+    };
 
     return (
-        <div>
-            <h3>Station {stationId}</h3>
-            { e(window.Button, { label: 'Boot', onClick: handleClick }) }
-            { e(window.Button, { label: 'Authorize', onClick: handleClick }) }
-            { e(window.Button, { label: 'Start', onClick: handleClick }) }
-            { e(window.Button, { label: 'Stop', onClick: handleClick }) }
-            { e(window.Button, { label: 'Status', onClick: handleClick }) }
-        </div>
+        <React.Fragment>
+            {e(
+                window.Card,
+                status,
+                e(window.Button, { label: 'Boot', onClick: handleClick }),
+                e(window.Button, { label: 'Authorize', onClick: handleClick }),
+                e(window.Button, { label: 'Start', onClick: handleClick }),
+                e(window.Button, { label: 'Stop', onClick: handleClick }),
+                e(window.Button, { label: 'Status', onClick: handleClick })
+            )}
+            <div style={{ height: "12px" }} />
+            {e(
+                window.Logs,
+                { logs: logs.map(log => 
+                        `${log[0]}------${log[1]}------${JSON.stringify(log[2])}`
+                    )
+                }
+            )}
+        </React.Fragment>
     );
 }
 
-const domContainer = document.querySelector('#station_container');
-ReactDOM.render(<Station stationId={0} />, domContainer);
+// const domContainer = document.querySelector('#station_container');
+// ReactDOM.render(<Station stationId={0} />, domContainer);

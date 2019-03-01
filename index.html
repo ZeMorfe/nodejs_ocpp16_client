@@ -4,22 +4,26 @@
         <meta charset="UTF-8">
         <title>OCPP Client</title>
 
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-        <style>
-            body { padding-top:50px; }
-        </style>
+        <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
+        <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
     </head>
     <body>
 
-        <div class="container">
-            <div class="jumbotron">
-                <h2>OCPP client simulator</h2>
-            </div>
+        <div class="root" style="padding:0px;margin:0px">
+            <header class="mdc-top-app-bar" style="top:0px">
+                <div class="mdc-top-app-bar__row">
+                    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+                        <span class="mdc-top-app-bar__title">OCPP client simulator</span>
+                    </section>
+                    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end">
+                    </section>
+                </div>
+            </header>
 
-            <div style='padding:20px'>
+            <section class="mdc-top-app-bar--fixed-adjust">
                 <!-- React component -->
-                <div id='station_container'></div>
-            </div>
+                <div id='app_container'></div>
+            </section>
         </div>
 
     </body>
@@ -28,6 +32,9 @@
     <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
 
+    <script type="text/babel" src="js/Card.js"></script>
     <script type="text/babel" src="js/Button.js"></script>
     <script type="text/babel" src="js/Station.js"></script>
+    <script type="text/babel" src="js/Logs.js"></script>
+    <script type="text/babel" src="js/App.js"></script>
 </html>
