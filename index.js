@@ -35,14 +35,7 @@ function spawnClient(endpoint, stationId) {
 
         const resHandler = partial(responseHandler, ws);
 
-        const {
-            ws: wsOcppClient,
-            getMsgId,
-            getQueue,
-            addToQueue,
-            getActiveTransaction,
-            setActiveTransaction
-        } = OCPPClient(CP[stationId], resHandler);
+        const ocppClient = OCPPClient(CP[stationId], resHandler);
 
         // send station info to the UI
         // ws.send(JSON.stringify(CP[stationId]));
@@ -54,17 +47,10 @@ function spawnClient(endpoint, stationId) {
         ws.on('error', (error) => console.log(error));
 
         ws.on('message', (raw) => {
-            const msg = JSON.parse(raw);
-            console.log(msg);
+            const msgFromUI = JSON.parse(raw);
+            console.log(msgFromUI);
 
-            requestHandler(
-                wsOcppClient,
-                stationId,
-                msg,
-                getMsgId(),
-                { getQueue, addToQueue },
-                { getActiveTransaction, setActiveTransaction }
-            );
+            requestHandler(stationId, msgFromUI, ocppClient);
         });
     });
 }

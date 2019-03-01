@@ -2,25 +2,33 @@ const { VALID_ACTIONS } = require('./ocpp');
 const CP = require('../data/chargepoints');
 
 
-const requestHandler = (ws, stationId, message, messageId, queue, transaction) => {
+const requestHandler = (
+    stationId,
+    messageFromUI,
+    { ws, getMsgId, getQueue, addToQueue, getActiveTransaction, addLog }
+) => {
     const messageType = 2;
-    const [action] = message;
-    const { transactionId } = transaction.getActiveTransaction() || {};
-    const payload = getPayload(stationId, message, { transactionId });
-
-    const req = [messageType, messageId, action, payload];
+    const [action] = messageFromUI;
+    const messageId = getMsgId();
+    const { transactionId } = getActiveTransaction() || {};
+    const payload = getPayload(stationId, messageFromUI, { transactionId });
 
     const isValidAction = VALID_ACTIONS.includes(action);
-    const isNewReq = !queue.getQueue().some(q => q.action === action);
+    const isNewReq = !getQueue().some(q => q.action === action);
     const isValidPayload = true;
 
     if (isValidAction && isNewReq && isValidPayload) {
+        const req = [messageType, messageId, action, payload];
         // send to OCPP server
         ws.send(JSON.stringify(req), () => {
             console.log('Message sent: ' + JSON.stringify(req));
 
             let pendingReq = { messageId, action, ...payload };
-            queue.addToQueue(pendingReq);
+
+            // requests await conf from server are added to queue
+            addToQueue(pendingReq);
+
+            addLog(req);
         });
     } else {
         console.log('Invalid action or payload');

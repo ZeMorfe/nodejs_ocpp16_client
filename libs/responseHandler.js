@@ -14,6 +14,7 @@ function responseHandler(wsBrowser, wsOcppClient, response) {
     function handleCallResult(states, setStates) {
         console.log('Handling call result');
         const [messageType, messageId, payload] = response;
+        // req action waiting for conf
         const pending = states.queue.find(q => q.messageId === messageId);
         
         const handlerFns = callResulthandler(wsBrowser, pending, setStates);
@@ -44,7 +45,10 @@ const callResulthandler = (wsBrowser, pending, setStates) => {
     return {
         'StartTransaction': ({ idTagInfo: { status }, transactionId }) => {
             const isAccepted = status === 'Accepted';
-            setStates.setActiveTransaction({ ...pending, transactionId });
+            if (isAccepted) {
+                setStates.setActiveTransaction({ ...pending, transactionId });
+            }
+            // notify the UI
             wsBrowser.send([`${action}Conf`, isAccepted]);
         },
         'StopTransaction': ({ idTagInfo: { status } }) => {
@@ -52,6 +56,7 @@ const callResulthandler = (wsBrowser, pending, setStates) => {
             if (isAccepted) {
                 setStates.setActiveTransaction(undefined);
             }
+            // notify the UI
             wsBrowser.send([`${action}Conf`, isAccepted]);
         }
     };

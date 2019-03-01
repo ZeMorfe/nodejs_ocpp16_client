@@ -91,7 +91,18 @@ function OCPPClient(CP, responseHandler) {
 
     ws.on('error', (error) => console.log(error));
 
-    return { ws, getMsgId, getLogs, getQueue, addToQueue, getActiveTransaction, setActiveTransaction };
+    const ocppClient = {
+        ws,
+        getMsgId,
+        getLogs,
+        addLog,
+        getQueue,
+        addToQueue,
+        getActiveTransaction,
+        setActiveTransaction
+    };
+
+    return ocppClient;
 }
 
 module.exports = OCPPClient;
