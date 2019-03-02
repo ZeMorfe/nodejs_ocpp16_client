@@ -2,39 +2,18 @@ const express = require('express');
 const path = require('path');
 const WebSocket = require('ws');
 const { partial } = require('lodash');
-const OCPPClient = require('./libs/ocppClient');
-const requestHandler = require('./libs/requestHandler');
+const OCPPClient = require('./src/ocppClient');
+const requestHandler = require('./src/requestHandler');
 const CP = require('./data/chargepoints');
-const responseHandler = require('./libs/responseHandler');
+const responseHandler = require('./src/responseHandler');
 
 const app = express();
 
-app.get('/', function(req, res, next) {
+app.use(express.static(path.join(__dirname, 'app')));
+
+const server = app.listen(5000, () => {
     console.log('OCPP 1.6 client');
-    res.sendFile(path.join(__dirname + '/index.html'));
 });
-
-app.get('/js/App.js', function(req, res) {
-    res.sendFile(path.join(__dirname + '/js/App.js'));
-});
-
-app.get('/js/Station.js', function(req, res) {
-    res.sendFile(path.join(__dirname + '/js/Station.js'));
-});
-
-app.get('/js/Button.js', function(req, res) {
-    res.sendFile(path.join(__dirname + '/js/Button.js'));
-});
-
-app.get('/js/Card.js', function(req, res) {
-    res.sendFile(path.join(__dirname + '/js/Card.js'));
-});
-
-app.get('/js/Logs.js', function(req, res) {
-    res.sendFile(path.join(__dirname + '/js/Logs.js'));
-});
-
-const server = app.listen(5000);
 
 spawnClient('/simulator', 0);
 // spawnClient('/simulator', 2);

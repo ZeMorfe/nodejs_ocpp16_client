@@ -16,7 +16,7 @@ window.Card = (props) => {
                 {/* <div className="mdc-card__media mdc-card__media--16-9 demo-card__media" style="background-image: url(&quot;https://material-components.github.io/material-components-web-catalog/static/media/photos/3x2/2.jpg&quot;);"></div> */}
                 <div className="demo-card__primary">
                     <h2 className="demo-card__title mdc-typography mdc-typography--headline6" style={headerStyle}>
-                        {props.header} <i class="material-icons" style={iconStyle}>ev_station</i>
+                        {props.header} <i className="material-icons" style={iconStyle}>ev_station</i>
                     </h2>
                     <h3 className="demo-card__subtitle mdc-typography mdc-typography--subtitle2">
                         Powertech Test Site
