@@ -9,7 +9,8 @@ const actionMap = {
     'stop': 'StopTransaction',
     'status': 'StatusNotification',
     'unlock': 'UnlockConnector',
-    'data transfer': 'DataTransfer'
+    'data transfer': 'DataTransfer',
+    'diagnostics': 'DiagnosticsStatusNotification'
 };
 
 function composeMessage(action) {
@@ -27,6 +28,7 @@ function composeMessage(action) {
             message = [action, { connectorId: 1, idTag, reason: 'Local' }];
             break;
         case 'DataTransfer':
+        case 'DiagnosticsStatusNotification':
         case 'StatusNotification':
         default:
             message = [action];
@@ -118,7 +120,8 @@ window.Station = ({ stationId }) => {
                 e(window.Button, { label: 'Start', onClick: handleClick, disabled: !authorized }),
                 e(window.Button, { label: 'Stop', onClick: handleClick, disabled: !authorized }),
                 e(window.Button, { label: 'Status', onClick: handleClick }),
-                e(window.Button, { label: 'Data Transfer', onClick: handleClick })
+                e(window.Button, { label: 'Data Transfer', onClick: handleClick }),
+                e(window.Button, { label: 'Diagnostics', onClick: handleClick })
             )}
             <div style={{ height: "12px" }} />
             {e(

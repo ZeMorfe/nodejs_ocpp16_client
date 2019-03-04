@@ -7,6 +7,7 @@ const MESSAGE_TYPE = {
 const ACTIONS_CORE = [
     "Authorize", "BootNotification", "ChangeAvailability",
     "ChangeConfiguration", "ClearCache", "DataTransfer",
+    "DiagnosticsStatusNotification",
     "GetConfiguration", "Heartbeat", "MeterValues",
     "RemoteStartTransaction", "RemoteStopTransaction",
     "Reset", "StartTransaction", "StopTransaction",

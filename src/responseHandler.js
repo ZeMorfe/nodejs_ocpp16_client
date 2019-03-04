@@ -101,6 +101,9 @@ function responseHandler(
             case 'DataTransfer':
                 handlerFns['DataTransfer'](payload);
                 break;
+            case 'DiagnosticsStatusNotification':
+                handlerFns['DataTransfer'](payload);
+                break;
             case 'StartTransaction':
                 handlerFns['StartTransaction'](payload);
                 break;
@@ -137,6 +140,9 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
         },
         'DataTransfer': (({ status, data }) => {
             console.log('Received DataTransfer conf', JSON.stringify({ status, data }));
+        }),
+        'DiagnosticsStatusNotification': ((conf) => {
+            console.log('Received DiagnosticsStatusNotification conf', JSON.stringify(conf));
         }),
         'StartTransaction': ({ idTagInfo, transactionId }) => {
             const isAccepted = idTagInfo.status === 'Accepted';
