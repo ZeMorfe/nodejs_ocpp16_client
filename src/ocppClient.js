@@ -2,12 +2,15 @@ const WebSocket = require('ws');
 const { partial } = require('lodash');
 const config = require('../config');
 const { MESSAGE_TYPE } = require('./ocpp');
+const authorizationList = require('./authorizationList');
 
 function OCPPClient(CP, responseHandler) {
     let msgId = 1;
     let logs = [];
     let activeTransaction;
     let queue = [];
+    const authCache = authorizationList({ type: 'cache' });
+    const authList = authorizationList({ type: 'list' });
 
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
@@ -54,7 +57,7 @@ function OCPPClient(CP, responseHandler) {
         { headers: { Authorization: auth }}
     );
 
-    const resHandler = partial(responseHandler, ws ,getLogs);
+    const resHandler = partial(responseHandler, ws ,getLogs, { authCache, authList });
 
     ws.on('open', function open() {
         console.log('ws client open');
@@ -93,6 +96,8 @@ function OCPPClient(CP, responseHandler) {
 
     const ocppClient = {
         ws,
+        authCache,
+        authList,
         getMsgId,
         getLogs,
         addLog,

@@ -37,6 +37,7 @@ window.Station = ({ stationId }) => {
     const [socket, setSocket] = React.useState();
     const [online, setOnline] = React.useState();
     const [stationProps, setStationProps] = React.useState(stationId);
+    const [authorized, setAuthorized] = React.useState(false);  
     const [message, setMessage] = React.useState();
     const [logs, setLogs] = React.useState([]);
     const [charging, setCharging] = React.useState(false);
@@ -68,14 +69,27 @@ window.Station = ({ stationId }) => {
             console.log('From client server', data);
             setMessage(data);
 
-            if (data[0] === 'Startup') {
-                setStationProps(data[1]);
-            } else if (data[0] === 'OCPP') {
-                setLogs(data[1]);
-            } else if (data[0] === 'StartTransactionConf') {
-                setCharging(data[1])
-            } else if (data[0] === 'StopTransactionConf') {
-                setCharging(!data[1])
+            let [messageType, payload] = data;
+
+            switch (messageType) {
+                case 'Startup':
+                    setStationProps(payload);
+                    break;
+                case 'OCPP':
+                    setLogs(payload);
+                    break;
+                case 'AuthorizeConf':
+                    setAuthorized(payload);
+                    break;
+                case 'StartTransactionConf':
+                    setCharging(payload);
+                    break;
+                case 'StopTransactionConf':
+                    setCharging(!payload);
+                    if (payload) {
+                        setAuthorized(false);
+                    }
+                    break;
             }
         };
         ws.onclose = () => {
@@ -99,8 +113,8 @@ window.Station = ({ stationId }) => {
                 status,
                 e(window.Button, { label: 'Boot', onClick: handleClick }),
                 e(window.Button, { label: 'Authorize', onClick: handleClick }),
-                e(window.Button, { label: 'Start', onClick: handleClick }),
-                e(window.Button, { label: 'Stop', onClick: handleClick }),
+                e(window.Button, { label: 'Start', onClick: handleClick, disabled: !authorized }),
+                e(window.Button, { label: 'Stop', onClick: handleClick, disabled: !authorized }),
                 e(window.Button, { label: 'Status', onClick: handleClick })
             )}
             <div style={{ height: "12px" }} />
