@@ -4,6 +4,7 @@
 
 const util = require('util');
 const requestHandler = require('./requestHandler');
+const CP = require('../data/chargepoints');
 const sendLocalList = require('../ocpp/sendLocalList');
 const triggerMessage = require('../ocpp/triggerMessage');
 
@@ -35,6 +36,11 @@ function responseHandler(
         let res;
 
         switch (action) {
+            case 'GetConfiguration':
+                let configurationKey = CP[stationId].configurationKey;
+                res = composeResponse(messageId, { configurationKey });
+                wsOcppClient.send(JSON.stringify(res));
+                break;
             case 'GetLocalListVersion':
                 res = composeResponse(messageId, { listVersion: auth.getVersion() });
                 wsOcppClient.send(JSON.stringify(res));
@@ -44,9 +50,40 @@ function responseHandler(
                 wsOcppClient.send(JSON.stringify(res));
                 break;
             case 'SendLocalList':
-                let payloadConf = sendLocalList.conf(auth.authList, payload);
+                let payloadConf = sendLocalList.conf(authList, payload);
                 res = composeResponse(messageId, payloadConf)
                 wsOcppClient.send(JSON.stringify(res));
+                break;
+            case 'SetChargingProfile':
+                res = composeResponse(messageId, { status: 'Accepted' });
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    let {
+                        connectorId,
+                        csChargingProfiles: {
+                            chargingProfileId,
+                            transactionId,
+                            stackLevel,
+                            chargingProfilePurpose,
+                            chargingProfileKind,
+                            recurrencyKind,
+                            validFrom,
+                            validTo,
+                            chargingSchedule: {
+                                duration,
+                                startSchedule,
+                                chargingRateUnit,
+                                chargingSchedulePeriod: {
+                                    startPeriod,
+                                    limit,
+                                    numberPhases
+                                },
+                                minChargingRate
+                            }
+                        }
+                    } = payload;
+                    let power = parseFloat(Number(limit) * 208 / 1000).toFixed(2);
+                    wsBrowser.send(JSON.stringify([`${action}Conf`, power]));
+                });
                 break;
             case 'TriggerMessage':
                 let implemented = triggerMessage.conf(payload);

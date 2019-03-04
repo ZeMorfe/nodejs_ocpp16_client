@@ -51,6 +51,7 @@ window.Station = ({ stationId }) => {
     const [message, setMessage] = React.useState();
     const [logs, setLogs] = React.useState([]);
     const [charging, setCharging] = React.useState(false);
+    const [power, setPower] = React.useState(0);
 
     const handleClick = (event) => {
         console.log(event.target.value);
@@ -100,6 +101,9 @@ window.Station = ({ stationId }) => {
                         setAuthorized(false);
                     }
                     break;
+                case 'SetChargingProfileConf':
+                    setPower(payload);
+                    break;
             }
         };
         ws.onclose = () => {
@@ -113,7 +117,8 @@ window.Station = ({ stationId }) => {
     const status = {
         header: stationProps.name,
         status: `Status: ${online ? 'online' : 'offline'}`,
-        charging
+        charging,
+        power: 6.6 * Number(charging)
     };
 
     return (
