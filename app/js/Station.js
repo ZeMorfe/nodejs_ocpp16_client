@@ -10,7 +10,9 @@ const actionMap = {
     'status': 'StatusNotification',
     'unlock': 'UnlockConnector',
     'data transfer': 'DataTransfer',
-    'diagnostics': 'DiagnosticsStatusNotification'
+    'diagnostics': 'DiagnosticsStatusNotification',
+    'firmware': 'FirmwareStatusNotification',
+    'heartbeat': 'Heartbeat'
 };
 
 function composeMessage(action) {
@@ -29,6 +31,8 @@ function composeMessage(action) {
             break;
         case 'DataTransfer':
         case 'DiagnosticsStatusNotification':
+        case 'FirmwareStatusNotification':
+        case 'Heartbeat':
         case 'StatusNotification':
         default:
             message = [action];
@@ -121,7 +125,9 @@ window.Station = ({ stationId }) => {
                 e(window.Button, { label: 'Stop', onClick: handleClick, disabled: !authorized }),
                 e(window.Button, { label: 'Status', onClick: handleClick }),
                 e(window.Button, { label: 'Data Transfer', onClick: handleClick }),
-                e(window.Button, { label: 'Diagnostics', onClick: handleClick })
+                e(window.Button, { label: 'Diagnostics', onClick: handleClick }),
+                e(window.Button, { label: 'Firmware', onClick: handleClick }),
+                e(window.Button, { label: 'Heartbeat', onClick: handleClick })
             )}
             <div style={{ height: "12px" }} />
             {e(
@@ -134,6 +140,3 @@ window.Station = ({ stationId }) => {
         </React.Fragment>
     );
 }
-
-// const domContainer = document.querySelector('#station_container');
-// ReactDOM.render(<Station stationId={0} />, domContainer);

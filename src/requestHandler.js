@@ -93,6 +93,12 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
         case 'DiagnosticsStatusNotification':
             payload = { status: 'Idle' };
             break;
+        case 'FirmwareStatusNotification':
+            payload = { status: 'Idle' };
+            break;
+        case 'Heartbeat':
+            payload = {};
+            break;
         case 'StartTransaction':
             timestamp = new Date().toISOString();
             payload = { meterStart: 10, timestamp, ...payloadFromStation };

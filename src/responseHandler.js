@@ -102,7 +102,10 @@ function responseHandler(
                 handlerFns['DataTransfer'](payload);
                 break;
             case 'DiagnosticsStatusNotification':
-                handlerFns['DataTransfer'](payload);
+                handlerFns['DiagnosticsStatusNotification'](payload);
+                break;
+            case 'FirmwareStatusNotification':
+                handlerFns['FirmwareStatusNotification'](payload);
                 break;
             case 'StartTransaction':
                 handlerFns['StartTransaction'](payload);
@@ -111,6 +114,7 @@ function responseHandler(
                 handlerFns['StopTransaction'](payload);
                 break;
             default:
+                handlerFns[pending.action](payload);
         }
 
         setStates.popQueue(messageId);
@@ -143,6 +147,12 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
         }),
         'DiagnosticsStatusNotification': ((conf) => {
             console.log('Received DiagnosticsStatusNotification conf', JSON.stringify(conf));
+        }),
+        'FirmwareStatusNotification': ((conf) => {
+            console.log('Received FirmwareStatusNotification conf', JSON.stringify(conf));
+        }),
+        'Heartbeat': (({ currentTime }) => {
+            console.log('Received Heartbeat conf', JSON.stringify({ currentTime }));
         }),
         'StartTransaction': ({ idTagInfo, transactionId }) => {
             const isAccepted = idTagInfo.status === 'Accepted';
