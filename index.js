@@ -24,7 +24,7 @@ function spawnClient(endpoint, stationId) {
     wss.on('connection', (ws) => {
         console.log(`connected to ${endpoint + stationId}`);
 
-        const resHandler = partial(responseHandler, ws);
+        const resHandler = partial(responseHandler, stationId, ws);
 
         const ocppClient = OCPPClient(CP[stationId], resHandler);
 

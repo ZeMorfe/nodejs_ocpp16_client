@@ -11,6 +11,7 @@ function OCPPClient(CP, responseHandler) {
     let queue = [];
     const authCache = authorizationList({ type: 'cache' });
     const authList = authorizationList({ type: 'list' });
+    let heartbeat = 3600;
 
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
@@ -21,6 +22,14 @@ function OCPPClient(CP, responseHandler) {
 
     function incMsgId() {
         msgId += 1;
+    }
+
+    function getHeartbeat() {
+        return heartbeat;
+    }
+
+    function setHeartbeat(interval) {
+        heartbeat = interval || 3600;
     }
 
     function addLog(type, response) {
@@ -57,7 +66,20 @@ function OCPPClient(CP, responseHandler) {
         { headers: { Authorization: auth }}
     );
 
-    const resHandler = partial(responseHandler, ws ,getLogs, { authCache, authList });
+    const ocppClient = {
+        ws,
+        authCache,
+        authList,
+        getMsgId,
+        getLogs,
+        addLog,
+        getQueue,
+        addToQueue,
+        getActiveTransaction,
+        setActiveTransaction
+    };
+
+    const resHandler = partial(responseHandler, ocppClient);
 
     ws.on('open', function open() {
         console.log('ws client open');
@@ -93,19 +115,6 @@ function OCPPClient(CP, responseHandler) {
     });
 
     ws.on('error', (error) => console.log(error));
-
-    const ocppClient = {
-        ws,
-        authCache,
-        authList,
-        getMsgId,
-        getLogs,
-        addLog,
-        getQueue,
-        addToQueue,
-        getActiveTransaction,
-        setActiveTransaction
-    };
 
     return ocppClient;
 }
