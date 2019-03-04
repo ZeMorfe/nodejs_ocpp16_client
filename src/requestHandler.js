@@ -99,9 +99,33 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
         case 'Heartbeat':
             payload = {};
             break;
+        case 'MeterValues': {
+            let connectorId = 0;
+            // let transactionId;
+            let meterValue = {
+                timestamp: new Date().toISOString(),
+                sampledValue: [
+                    { value: '10', measurand: 'Energy.Active.Import.Register', unit: 'kWh' },
+                    { value: '18', measurand: 'Temperature', unit: 'Celcius' },
+                    { value: '206', measurand: 'Voltage', unit: 'V' }
+                ]
+            };
+            payload = { connectorId, meterValue };
+        }
+            break;
         case 'StartTransaction':
             timestamp = new Date().toISOString();
             payload = { meterStart: 10, timestamp, ...payloadFromStation };
+            break;
+        case 'StatusNotification': {
+            let connectorId = 0;
+            let errorCode = 'NoError';  // see section 7.6 in the 1.6 spec
+            let info = 'Test';
+            let status = 'Available';  // see section 7.7
+            let vendorId = 'E8EAFB';
+
+            payload = { connectorId, errorCode, info, status, vendorId };
+        }
             break;
         case 'StopTransaction':
             timestamp = new Date().toISOString();

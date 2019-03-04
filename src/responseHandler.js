@@ -142,18 +142,21 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
 
             updateAuthorizationCache(authCache, pending.idTag, idTagInfo);
         },
-        'DataTransfer': (({ status, data }) => {
+        'DataTransfer': ({ status, data }) => {
             console.log('Received DataTransfer conf', JSON.stringify({ status, data }));
-        }),
-        'DiagnosticsStatusNotification': ((conf) => {
+        },
+        'DiagnosticsStatusNotification': (conf) => {
             console.log('Received DiagnosticsStatusNotification conf', JSON.stringify(conf));
-        }),
-        'FirmwareStatusNotification': ((conf) => {
+        },
+        'FirmwareStatusNotification': (conf) => {
             console.log('Received FirmwareStatusNotification conf', JSON.stringify(conf));
-        }),
-        'Heartbeat': (({ currentTime }) => {
+        },
+        'Heartbeat': ({ currentTime }) => {
             console.log('Received Heartbeat conf', JSON.stringify({ currentTime }));
-        }),
+        },
+        'MeterValues': (conf) => {
+            console.log('Received MeterValues conf', JSON.stringify(conf));  
+        },
         'StartTransaction': ({ idTagInfo, transactionId }) => {
             const isAccepted = idTagInfo.status === 'Accepted';
             if (isAccepted) {
@@ -163,6 +166,9 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
             wsBrowser.send(JSON.stringify([`${action}Conf`, isAccepted]));
 
             updateAuthorizationCache(authCache, pending.idTag, idTagInfo);
+        },
+        'StatusNotification': (conf) => {
+            console.log('Received StatusNotification conf', JSON.stringify(conf)); 
         },
         'StopTransaction': ({ idTagInfo }) => {
             const isAccepted = idTagInfo.status === 'Accepted';

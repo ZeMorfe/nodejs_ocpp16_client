@@ -10,8 +10,8 @@ const ACTIONS_CORE = [
     "DiagnosticsStatusNotification", "FirmwareStatusNotification",
     "GetConfiguration", "Heartbeat", "MeterValues",
     "RemoteStartTransaction", "RemoteStopTransaction",
-    "Reset", "StartTransaction", "StopTransaction",
-    "UnlockConnector"
+    "Reset", "StartTransaction", "StatusNotification",
+    "StopTransaction", "UnlockConnector"
 ];
 
 const VALID_ACTIONS = [

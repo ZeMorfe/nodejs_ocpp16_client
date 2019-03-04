@@ -7,12 +7,13 @@ const actionMap = {
     'boot': 'BootNotification',
     'start': 'StartTransaction',
     'stop': 'StopTransaction',
-    'status': 'StatusNotification',
     'unlock': 'UnlockConnector',
     'data transfer': 'DataTransfer',
     'diagnostics': 'DiagnosticsStatusNotification',
     'firmware': 'FirmwareStatusNotification',
-    'heartbeat': 'Heartbeat'
+    'heartbeat': 'Heartbeat',
+    'meter': 'MeterValues',
+    'status': 'StatusNotification',
 };
 
 function composeMessage(action) {
@@ -33,6 +34,7 @@ function composeMessage(action) {
         case 'DiagnosticsStatusNotification':
         case 'FirmwareStatusNotification':
         case 'Heartbeat':
+        case 'MeterValues':
         case 'StatusNotification':
         default:
             message = [action];
@@ -123,11 +125,12 @@ window.Station = ({ stationId }) => {
                 e(window.Button, { label: 'Authorize', onClick: handleClick }),
                 e(window.Button, { label: 'Start', onClick: handleClick, disabled: !authorized }),
                 e(window.Button, { label: 'Stop', onClick: handleClick, disabled: !authorized }),
-                e(window.Button, { label: 'Status', onClick: handleClick }),
                 e(window.Button, { label: 'Data Transfer', onClick: handleClick }),
                 e(window.Button, { label: 'Diagnostics', onClick: handleClick }),
                 e(window.Button, { label: 'Firmware', onClick: handleClick }),
-                e(window.Button, { label: 'Heartbeat', onClick: handleClick })
+                e(window.Button, { label: 'Heartbeat', onClick: handleClick }),
+                e(window.Button, { label: 'Meter', onClick: handleClick }),
+                e(window.Button, { label: 'Status', onClick: handleClick }),
             )}
             <div style={{ height: "12px" }} />
             {e(
