@@ -94,28 +94,7 @@ function responseHandler(
 
         const handlerFns = callResulthandler(wsBrowser, pending, setStates, authCache);
 
-        switch (pending.action) {
-            case 'Authorize':
-                handlerFns['Authorize'](payload);
-                break;
-            case 'DataTransfer':
-                handlerFns['DataTransfer'](payload);
-                break;
-            case 'DiagnosticsStatusNotification':
-                handlerFns['DiagnosticsStatusNotification'](payload);
-                break;
-            case 'FirmwareStatusNotification':
-                handlerFns['FirmwareStatusNotification'](payload);
-                break;
-            case 'StartTransaction':
-                handlerFns['StartTransaction'](payload);
-                break;
-            case 'StopTransaction':
-                handlerFns['StopTransaction'](payload);
-                break;
-            default:
-                handlerFns[pending.action](payload);
-        }
+        handlerFns[pending.action](payload);
 
         setStates.popQueue(messageId);
     }
@@ -141,6 +120,9 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
             }
 
             updateAuthorizationCache(authCache, pending.idTag, idTagInfo);
+        },
+        'BootNotification': ({ currentTime, interval, status }) => {
+            console.log('Received BootNotification conf', JSON.stringify({ currentTime, interval, status }));
         },
         'DataTransfer': ({ status, data }) => {
             console.log('Received DataTransfer conf', JSON.stringify({ status, data }));

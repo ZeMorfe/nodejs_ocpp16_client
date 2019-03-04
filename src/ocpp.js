@@ -7,15 +7,30 @@ const MESSAGE_TYPE = {
 const ACTIONS_CORE = [
     "Authorize", "BootNotification", "ChangeAvailability",
     "ChangeConfiguration", "ClearCache", "DataTransfer",
-    "DiagnosticsStatusNotification", "FirmwareStatusNotification",
     "GetConfiguration", "Heartbeat", "MeterValues",
     "RemoteStartTransaction", "RemoteStopTransaction",
     "Reset", "StartTransaction", "StatusNotification",
     "StopTransaction", "UnlockConnector"
 ];
 
+const ACTIONS_FIRMWARE_MANAGEMENT = [
+    "GetDiagnostics", "DiagnosticsStatusNotification",
+    "FirmwareStatusNotification", "UpdateFirmware"
+];
+
+const ACTIONS_LOCAL_AUTH_LIST_MANAGEMENT = [
+    "GetLocalListVersion", "SendLocalList"
+];
+
+const ACTIONS_SMART_CHARGING = [
+    "TriggerMessage"
+];
+
 const VALID_ACTIONS = [
-    ...ACTIONS_CORE
+    ...ACTIONS_CORE,
+    ...ACTIONS_FIRMWARE_MANAGEMENT,
+    ...ACTIONS_LOCAL_AUTH_LIST_MANAGEMENT,
+    ...ACTIONS_SMART_CHARGING
 ];
 
 const STOP_REASONS = [
