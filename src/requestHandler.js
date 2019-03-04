@@ -82,6 +82,11 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
         case 'Authorize':
             payload = { ...payloadFromStation };
             break;
+        case 'DataTransfer':
+            let vendorId = 'E8EAFB';
+            let data = 'hello';
+            payload = { vendorId, data, ...payloadFromStation };
+            break;
         case 'BootNotification':
             payload = { ...CP[stationId].props, ...payloadFromStation };
             break;

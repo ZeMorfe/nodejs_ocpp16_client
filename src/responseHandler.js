@@ -77,6 +77,7 @@ function responseHandler(
                         );
                     });
                 }
+                break;
             default:
                 console.log(`${action} not supported`);
         }
@@ -96,6 +97,9 @@ function responseHandler(
         switch (pending.action) {
             case 'Authorize':
                 handlerFns['Authorize'](payload);
+                break;
+            case 'DataTransfer':
+                handlerFns['DataTransfer'](payload);
                 break;
             case 'StartTransaction':
                 handlerFns['StartTransaction'](payload);
@@ -131,6 +135,9 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
 
             updateAuthorizationCache(authCache, pending.idTag, idTagInfo);
         },
+        'DataTransfer': (({ status, data }) => {
+            console.log('Received DataTransfer conf', JSON.stringify({ status, data }));
+        }),
         'StartTransaction': ({ idTagInfo, transactionId }) => {
             const isAccepted = idTagInfo.status === 'Accepted';
             if (isAccepted) {
