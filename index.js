@@ -11,14 +11,19 @@ const app = express();
 
 app.use(express.static(path.join(__dirname, 'app')));
 
-const server = app.listen(5000, () => {
+app.listen(5000, () => {
     console.log('OCPP 1.6 client');
 });
 
 spawnClient('/simulator', 0);
-// spawnClient('/simulator', 2);
+spawnClient('/simulator', 1);
 
 function spawnClient(endpoint, stationId) {
+    const port = 5001 + Number(stationId);
+    const server = app.listen(port, () => {
+        console.log(`Station ${stationId} on port ${port}`);
+    });
+
     const wss = new WebSocket.Server({ server, path: endpoint + stationId });
 
     wss.on('connection', (ws) => {

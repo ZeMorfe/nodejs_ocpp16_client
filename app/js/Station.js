@@ -51,7 +51,7 @@ window.Station = ({ stationId }) => {
     const [message, setMessage] = React.useState();
     const [logs, setLogs] = React.useState([]);
     const [charging, setCharging] = React.useState(false);
-    const [power, setPower] = React.useState(0);
+    const [limit, setLimit] = React.useState(undefined);
 
     const handleClick = (event) => {
         console.log(event.target.value);
@@ -68,7 +68,7 @@ window.Station = ({ stationId }) => {
     };
 
     React.useEffect(() => {
-        const ws = new WebSocket('ws://localhost:5000/simulator' + stationId);
+        const ws = new WebSocket(`ws://localhost:500${stationId+1}/simulator` + stationId);
         setSocket(ws);
 
         ws.onopen = () => {
@@ -102,7 +102,7 @@ window.Station = ({ stationId }) => {
                     }
                     break;
                 case 'SetChargingProfileConf':
-                    setPower(payload);
+                    setLimit(payload);
                     break;
             }
         };
@@ -118,11 +118,11 @@ window.Station = ({ stationId }) => {
         header: stationProps.name,
         status: `Status: ${online ? 'online' : 'offline'}`,
         charging,
-        power: 6.6 * Number(charging)
+        power: (((limit === undefined || limit === null) ? 6.6 : Number(limit))) * Number(charging)
     };
 
     return (
-        <React.Fragment>
+        <div>
             {e(
                 window.Card,
                 status,
@@ -145,6 +145,6 @@ window.Station = ({ stationId }) => {
                     )
                 }
             )}
-        </React.Fragment>
+        </div>
     );
 }

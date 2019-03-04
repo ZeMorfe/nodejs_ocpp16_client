@@ -2,13 +2,19 @@
 
 const e = React.createElement;
 
+const layout = {
+    display: 'grid',
+    gridTemplateColumns: '50% 50%',
+    gridColumnGap: '24px',
+    width: '100%',
+};
+
 const App = () => {
     return (
-        e(
-            'div',
-            {},
-            e(window.Station, { stationId: 0 })
-        )
+        <div style={layout}>
+            {e(window.Station, { stationId: 0 })}
+            {e(window.Station, { stationId: 1 })}
+        </div>
     )
 };
 

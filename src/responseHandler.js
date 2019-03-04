@@ -36,6 +36,11 @@ function responseHandler(
         let res;
 
         switch (action) {
+            case 'ClearChargingProfile':
+                res = composeResponse(messageId, { status: 'Accepted' });
+                wsOcppClient.send(JSON.stringify(res));
+                wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, undefined]));
+                break;
             case 'GetConfiguration':
                 let configurationKey = CP[stationId].configurationKey;
                 res = composeResponse(messageId, { configurationKey });
@@ -72,17 +77,26 @@ function responseHandler(
                                 duration,
                                 startSchedule,
                                 chargingRateUnit,
-                                chargingSchedulePeriod: {
-                                    startPeriod,
-                                    limit,
-                                    numberPhases
-                                },
+                                chargingSchedulePeriod,
                                 minChargingRate
                             }
                         }
                     } = payload;
-                    let power = parseFloat(Number(limit) * 208 / 1000).toFixed(2);
-                    wsBrowser.send(JSON.stringify([`${action}Conf`, power]));
+                    let defaultAmp = 30;
+                    let amp = chargingSchedulePeriod.reduce((res, sch) => {
+                        let {
+                            startPeriod,
+                            limit,
+                            numberPhases
+                        } = sch;
+                        if (Number(limit) < res) {
+                            return limit;
+                        } else {
+                            return res;
+                        }
+                    }, defaultAmp);
+                    let powerLimit = parseFloat(Number(amp) * 208 / 1000).toFixed(2);
+                    wsBrowser.send(JSON.stringify([`${action}Conf`, powerLimit]));
                 });
                 break;
             case 'TriggerMessage':
