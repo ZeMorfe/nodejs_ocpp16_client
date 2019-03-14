@@ -293,3 +293,126 @@ BEGIN
 END
 $$
 DELIMITER ;
+
+
+DROP FUNCTION IF EXISTS `getSmartChargingGroupByTxId`;
+DELIMITER $$
+CREATE FUNCTION `getSmartChargingGroupByTxId` (
+    txId INT
+) RETURNS INT
+BEGIN
+    DECLARE cpId INT DEFAULT 0;
+    DECLARE groupId INT DEFAULT 0;
+
+    SELECT chargepointId
+    INTO  cpId
+    FROM transactionLog
+    WHERE transactionLogId = txId;
+
+    IF cpId > 0 THEN
+        SELECT cpg.groupId
+        INTO groupId
+        FROM chargepointGroup cpg
+        WHERE cpg.chargepointId = cpId;
+    END IF;
+
+    return groupId;
+END
+$$
+DELIMITER ;
+
+/*
+ * Note this function should only be called in stop transaction req
+ * and after the server updates `transactionLog`. This ensures the last
+ * log item corresponds to the stop transaction req.
+ */
+DROP FUNCTION IF EXISTS `getSmartChargingGroupFromLastTx`;
+DELIMITER $$
+CREATE FUNCTION `getSmartChargingGroupFromLastTx` ()
+RETURNS INT
+BEGIN
+    DECLARE cpId INT DEFAULT 0;
+    DECLARE groupId INT DEFAULT 0;
+
+    SELECT chargepointId
+    INTO  cpId
+    FROM transactionLog
+    ORDER BY timestampStop DESC
+    LIMIT 1;
+
+    IF cpId > 0 THEN
+        SELECT cpg.groupId
+        INTO groupId
+        FROM chargepointGroup cpg
+        WHERE cpg.chargepointId = cpId;
+    END IF;
+
+    return groupId;
+END
+$$
+DELIMITER ;
+
+
+DROP PROCEDURE IF EXISTS `CENTRAL_SMART_CHARGING_CLEAR`;
+DELIMITER $$
+CREATE PROCEDURE `CENTRAL_SMART_CHARGING_CLEAR`(
+    IN txId INT
+)
+BEGIN
+    DECLARE transactionId INT;
+    DECLARE chargepointId INT;
+    DECLARE cp VARCHAR(20);
+    DECLARE portId INT;
+    DECLARE connectorId INT;
+    DECLARE groupId INT;
+    DECLARE chargingProfileId INT DEFAULT 0;
+    DECLARE numOfCpsInGroup INT DEFAULT 0;
+    DECLARE numOfActiveTxInGroup INT DEFAULT 0;
+    DECLARE s VARCHAR(20);
+
+    IF txId > 0 THEN
+        -- if transaction id is provided by the server
+        SET groupId = getSmartChargingGroupByTxId(txId);
+
+        SELECT tl.transactionId, tl.chargepointId, tl.portId
+        INTO  transactionId, chargepointId, portId
+        FROM transactionLog tl
+        WHERE tl.transactionId = txId;
+    ELSE
+        SET groupId = getSmartChargingGroupFromLastTx();
+        
+        SELECT tl.transactionId, tl.chargepointId, tl.portId
+        INTO transactionId, chargepointId, portId
+        FROM transactionLog tl
+        ORDER BY tl.timestampStop DESC LIMIT 1
+    END IF;
+
+    SELECT p.connectorId INTO connectorId
+    FROM port p
+    WHERE p.portId = portId;
+
+    SELECT cpa.chargingProfileId INTO chargingProfileId
+    FROM chargingProfileAssigned cpa
+    WHERE cpa.chargepointId = chargepointId
+    AND cpa.connectorId = connectorId;
+
+    IF chargingProfileId > 0 THEN
+        SET numOfCpsInGroup = getNumOfChargepointsInGroup(groupId);
+        SET numOfActiveTxInGroup = getNumOfActiveTxInGroup(groupId);
+
+        SELECT c.HTTP_CP INTO cp
+        FROM chargepoint c
+        WHERE c.chargepointId = chargepointId;
+
+        IF (numOfActiveTxInGroup >= numOfCpsInGroup && numOfActiveTxInGroup > 1) THEN
+            /* need to drop profiles on all cps in the group */
+        ELSE
+            /* only need to drop the profile on the cp requested stop transaction */
+            CLEAR_CHARGING_PROFILE(cp, connectorId, chargingProfileId, s);
+
+        END IF;
+    END IF;
+
+END
+$$
+DELIMITER ;
