@@ -85,7 +85,6 @@ values
 (1,1,1,'dummyIdTag'),
 (3,2,1,'dummyIdTag');
 
-/* from OpenOCPP 1.1.1 */
 drop table if exists dummyChargingProfileAssigned;
 CREATE TABLE `dummyChargingProfileAssigned` (
     `chargingProfileAssignedId` INTEGER NOT NULL AUTO_INCREMENT,
@@ -157,6 +156,44 @@ BEGIN
     END IF;
 
     return ret;
+END
+$$
+DELIMITER ;
+
+DROP FUNCTION IF EXISTS `getNumOfChargepointsInGroup`;
+DELIMITER $$
+CREATE FUNCTION `getNumOfChargepointsInGroup` (
+    groupId INT
+) RETURNS INT
+BEGIN
+    DECLARE n INT DEFAULT 0;
+
+    SELECT COUNT(*) INTO n
+    FROM chargepointGroup cpg WHERE cpg.groupId = groupId;
+
+    return n;
+END
+$$
+DELIMITER ;
+
+DROP FUNCTION IF EXISTS `getNumOfActiveTxInGroup`;
+DELIMITER $$
+CREATE FUNCTION `getNumOfActiveTxInGroup` (
+    groupId INT
+) RETURNS INT
+BEGIN
+    DECLARE n INT DEFAULT 0;
+
+    SELECT COUNT(DISTINCT chargepointId)
+    INTO n
+    FROM transactionLog
+    WHERE terminateReasonId = 1
+    AND chargepointId IN (
+        SELECT g.chargepointId FROM chargepointGroup g
+        WHERE g.groupId = groupId
+    );
+
+    return n;
 END
 $$
 DELIMITER ;
@@ -366,25 +403,29 @@ BEGIN
     DECLARE connectorId INT;
     DECLARE groupId INT;
     DECLARE chargingProfileId INT DEFAULT 0;
+    DECLARE chargingProfilePurposeTypeId INT;
+    DECLARE TxProfile INT;
     DECLARE numOfCpsInGroup INT DEFAULT 0;
     DECLARE numOfActiveTxInGroup INT DEFAULT 0;
     DECLARE s VARCHAR(20);
+
+    SET TxProfile = 3;  -- see chargingProfilePurposeType
 
     IF txId > 0 THEN
         -- if transaction id is provided by the server
         SET groupId = getSmartChargingGroupByTxId(txId);
 
-        SELECT tl.transactionId, tl.chargepointId, tl.portId
+        SELECT tl.transactionLogId, tl.chargepointId, tl.portId
         INTO  transactionId, chargepointId, portId
         FROM transactionLog tl
-        WHERE tl.transactionId = txId;
+        WHERE tl.transactionLogId = txId;
     ELSE
         SET groupId = getSmartChargingGroupFromLastTx();
         
-        SELECT tl.transactionId, tl.chargepointId, tl.portId
+        SELECT tl.transactionLogId, tl.chargepointId, tl.portId
         INTO transactionId, chargepointId, portId
         FROM transactionLog tl
-        ORDER BY tl.timestampStop DESC LIMIT 1
+        ORDER BY tl.timestampStop DESC LIMIT 1;
     END IF;
 
     SELECT p.connectorId INTO connectorId
@@ -396,7 +437,12 @@ BEGIN
     WHERE cpa.chargepointId = chargepointId
     AND cpa.connectorId = connectorId;
 
-    IF chargingProfileId > 0 THEN
+    SELECT cprofile.chargingProfilePurposeTypeId INTO chargingProfilePurposeTypeId
+    FROM chargingProfile cprofile
+    WHERE cprofile.chargingProfileId = chargingProfileId;
+
+    -- TxProfile only
+    IF chargingProfileId > 0 AND chargingProfilePurposeTypeId = TxProfile THEN
         SET numOfCpsInGroup = getNumOfChargepointsInGroup(groupId);
         SET numOfActiveTxInGroup = getNumOfActiveTxInGroup(groupId);
 
@@ -406,13 +452,41 @@ BEGIN
 
         IF (numOfActiveTxInGroup >= numOfCpsInGroup && numOfActiveTxInGroup > 1) THEN
             /* need to drop profiles on all cps in the group */
+            SELECT "NO OP";
         ELSE
             /* only need to drop the profile on the cp requested stop transaction */
-            CLEAR_CHARGING_PROFILE(cp, connectorId, chargingProfileId, s);
-
+            -- CALL CLEAR_CHARGING_PROFILE(cp, connectorId, chargingProfileId, s);
+            INSERT INTO outboundRequest (requestTypeId,chargepointId,connectorId,chargingProfileId) 
+            VALUES (requestTypeId('ClearChargingProfile'),chargepointId(cp),connectorId,chargingProfileId);
         END IF;
     END IF;
 
+END
+$$
+DELIMITER ;
+
+
+DROP PROCEDURE IF EXISTS `CENTRAL_SMART_CHARGING_DROP_ASSIGNED_TXPROFILE`;
+DELIMITER $$
+CREATE PROCEDURE `CENTRAL_SMART_CHARGING_DROP_ASSIGNED_TXPROFILE`(
+    IN CP VARCHAR(40), IN connectorId INT, IN chargingProfileId INT
+)
+BEGIN
+    DECLARE chargingProfilePurposeTypeId INT;
+    DECLARE TxProfile INT;
+    SET TxProfile = 3;
+
+    SELECT cprofile.chargingProfilePurposeTypeId INTO chargingProfilePurposeTypeId
+    FROM chargingProfile cprofile
+    WHERE cprofile.chargingProfileId = chargingProfileId;
+
+    -- TxProfile only
+    IF chargingProfilePurposeTypeId = TxProfile THEN
+        DELETE cpa FROM chargingProfileAssigned AS cpa
+        WHERE cpa.chargepointId = chargepointId(CP)
+        AND cpa.connectorId = connectorId
+        AND cpa.chargingProfileId = chargingProfileId;
+    END IF;
 END
 $$
 DELIMITER ;
