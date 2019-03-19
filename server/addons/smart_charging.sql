@@ -223,7 +223,7 @@ BEGIN
     DECLARE cpCursor CURSOR FOR (
         SELECT tl.chargepointId, tl.portId, tl.transactionLogId
         FROM transactionLog tl
-        WHERE terminateReasonId = 1
+        WHERE terminateReasonId = 1  -- Not Terminated
         AND tl.chargepointId IN (
             SELECT cpg.chargepointId FROM chargepointGroup cpg
             WHERE cpg.groupId = groupId
@@ -239,7 +239,7 @@ BEGIN
     -- number of active transactions related to the group
     SELECT COUNT(DISTINCT chargepointId) INTO numOfActiveTx
     FROM transactionLog
-    WHERE terminateReasonId = 1
+    WHERE terminateReasonId = 1  -- Not Terminated
     AND chargepointId IN (
         SELECT g.chargepointId FROM chargepointGroup g
         WHERE g.groupId = groupId
@@ -289,6 +289,10 @@ BEGIN
 
         -- add to outbound request
         IF isInOutboundReq = 0 THEN
+            /*
+             * `SET_CHARGING_PROFILE` is a stored procedure from OpenOCPP v1.1.1
+             * that adds the `setChargingProfile` request to `outboundRequest`
+             */
             CALL SET_CHARGING_PROFILE(
                 r_cp, r_connectorId, r_chargingProfileId, r_transactionId, s
             );
@@ -450,17 +454,78 @@ BEGIN
         FROM chargepoint c
         WHERE c.chargepointId = chargepointId;
 
-        IF (numOfActiveTxInGroup >= numOfCpsInGroup && numOfActiveTxInGroup > 1) THEN
-            /* need to drop profiles on all cps in the group */
-            SELECT "NO OP";
-        ELSE
-            /* only need to drop the profile on the cp requested stop transaction */
-            -- CALL CLEAR_CHARGING_PROFILE(cp, connectorId, chargingProfileId, s);
-            INSERT INTO outboundRequest (requestTypeId,chargepointId,connectorId,chargingProfileId) 
-            VALUES (requestTypeId('ClearChargingProfile'),chargepointId(cp),connectorId,chargingProfileId);
+        /*
+         * Add a `claerChargingProfile` request to `outboundRequest` for
+         * the cp requested stop transaction
+         */
+        CALL CLEAR_CHARGING_PROFILE(cp, connectorId, chargingProfileId, s);
+
+        IF (numOfActiveTxInGroup + 1 <= numOfCpsInGroup) THEN
+            /* Drop profiles on all other cps in the group */
+            CALL CLEAR_OTHER_TXPROFILES_IN_GROUP(groupId);
         END IF;
     END IF;
 
+END
+$$
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `CLEAR_OTHER_TXPROFILES_IN_GROUP`;
+DELIMITER $$
+CREATE PROCEDURE `CLEAR_OTHER_TXPROFILES_IN_GROUP`(
+    IN groupId INT
+)
+BEGIN
+    DECLARE cp VARCHAR(20);
+    DECLARE connectorId INT;
+    DECLARE chargingProfileId INT DEFAULT 0;
+    DECLARE chargingProfilePurposeTypeId INT;
+    DECLARE v_chargepointId INT;
+    DECLARE v_portId INT;
+    DECLARE v_finished INT DEFAULT 0;
+    DECLARE s VARCHAR(20);
+    DECLARE cpCursor CURSOR FOR (
+        SELECT tl.chargepointId, tl.portId
+        FROM transactionLog tl
+        WHERE terminateReasonId = 1  -- Not Terminated
+        AND tl.chargepointId IN (
+            SELECT cpg.chargepointId FROM chargepointGroup cpg
+            WHERE cpg.groupId = groupId
+        )
+    );
+    DECLARE CONTINUE HANDLER 
+        FOR NOT FOUND SET v_finished = 1;
+
+    OPEN cpCursor;
+    clearOtherTxProfiles: LOOP
+
+        FETCH cpCursor INTO v_chargepointId, v_portId;
+
+        IF v_finished = 1 THEN
+            LEAVE clearOtherTxProfiles;
+        END IF;
+
+        SELECT c.HTTP_CP INTO cp
+        FROM chargepoint c
+        WHERE c.chargepointId = v_chargepointId;
+
+        SELECT p.connectorId INTO connectorId
+        FROM port p
+        WHERE p.portId = v_portId;
+
+        SELECT cpa.chargingProfileId INTO chargingProfileId
+        FROM chargingProfileAssigned cpa
+        WHERE cpa.chargepointId = v_chargepointId
+        AND cpa.connectorId = connectorId;
+
+        SELECT cprofile.chargingProfilePurposeTypeId INTO chargingProfilePurposeTypeId
+        FROM chargingProfile cprofile
+        WHERE cprofile.chargingProfileId = chargingProfileId;
+
+        CALL CLEAR_CHARGING_PROFILE(cp, connectorId, chargingProfileId, s);
+
+    END LOOP clearOtherTxProfiles;
+    CLOSE cpCursor;
 END
 $$
 DELIMITER ;
