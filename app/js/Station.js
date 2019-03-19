@@ -16,8 +16,10 @@ const actionMap = {
     'status': 'StatusNotification',
 };
 
-function composeMessage(action) {
-    const idTag = '23F532C35';
+const idTags = ['23F532C35', '829FEAB'];
+
+function composeMessage(action, stationId=0) {
+    const idTag = idTags[stationId];
     let message;
     switch (action) {
         case 'Authorize':
@@ -57,7 +59,7 @@ window.Station = ({ stationId }) => {
         console.log(event.target.value);
         const value = event.target.value.toLowerCase();
         const action = actionMap[value];
-        const message = composeMessage(action);
+        const message = composeMessage(action, stationId);
 
         send(message);
     }
@@ -68,7 +70,7 @@ window.Station = ({ stationId }) => {
     };
 
     React.useEffect(() => {
-        const ws = new WebSocket(`ws://localhost:500${stationId+1}/simulator` + stationId);
+        const ws = new WebSocket('ws://localhost:5050/simulator' + stationId);
         setSocket(ws);
 
         ws.onopen = () => {

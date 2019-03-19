@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const url = require('url');
 const WebSocket = require('ws');
 const { partial } = require('lodash');
 const OCPPClient = require('./src/ocppClient');
@@ -15,16 +16,28 @@ app.listen(5000, () => {
     console.log('OCPP 1.6 client');
 });
 
-spawnClient('/simulator', 0);
-spawnClient('/simulator', 1);
+// server for ws connections from browser
+const server = app.listen(5050);
+
+server.on('upgrade', function upgrade(request, socket, head) {
+    const pathname = url.parse(request.url).pathname;
+    
+    if (pathnames.includes(pathname)) {
+        wsDict[pathname].handleUpgrade(request, socket, head, function done(ws) {
+            wsDict[pathname].emit('connection', ws, request);
+        });
+    } else {
+        socket.destroy();
+    }
+});
+
+const wss0 = spawnClient('/simulator', 0);
+const wss1 = spawnClient('/simulator', 1);
+const wsDict = { '/simulator0': wss0, '/simulator1': wss1 };
+const pathnames = ['/simulator0', '/simulator1'];
 
 function spawnClient(endpoint, stationId) {
-    const port = 5001 + Number(stationId);
-    const server = app.listen(port, () => {
-        console.log(`Station ${stationId} on port ${port}`);
-    });
-
-    const wss = new WebSocket.Server({ server, path: endpoint + stationId });
+    const wss = new WebSocket.Server({ noServer: true });
 
     wss.on('connection', (ws) => {
         console.log(`connected to ${endpoint + stationId}`);
@@ -38,6 +51,7 @@ function spawnClient(endpoint, stationId) {
 
         ws.on('close', () => {
             console.log('closed');
+            ocppClient.ws.close();
         });
         
         ws.on('error', (error) => console.log(error));
@@ -49,4 +63,6 @@ function spawnClient(endpoint, stationId) {
             requestHandler(stationId, msgFromUI, ocppClient, ws);
         });
     });
+
+    return wss;
 }
