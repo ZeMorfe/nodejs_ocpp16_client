@@ -103,13 +103,24 @@ function removeProfile({ response, getChargingProfiles, setChargingProfiles }) {
  * 
  * @param {object} param0 connectorId and all charging profiles
  */
-function getLimitNow({ connectorId, chargingProfiles }) {
-    const composite = compositeSchedule({ connectorId, chargingProfiles });
+function getLimitNow({ connectorId, chargingProfiles, cpMaxAmp }) {
+    const composite = compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp });
     
     const secondsFromStartOfDay = getSecondsFromStartOfDay();
 
-    const limitObj = composite.find(p => secondsFromStartOfDay >= p.ts);
-    const limit = limitObj ? limitObj.limit : undefined;
+    const idx = composite.findIndex(p => secondsFromStartOfDay < p.ts);
+    let limit;
+    const hasPrevIdx = idx - 1 >= 0;
+    if (idx > -1 && hasPrevIdx) {
+        // schedule is in effect now
+        limit = composite[idx - 1].limit;
+    } else if (idx === 0) {
+        // schedule not started yet
+        limit = undefined;
+    } else if (composite.length > 0) {
+        // schedule has finished
+        limit = cpMaxAmp;
+    }
 
     return limit;
 }
@@ -187,10 +198,13 @@ function compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp }) {
 }
 
 function combineConnectorProfiles({ connectorIds, txDefaultProfile, txProfile, cpMaxAmp }) {
+    let ids = [...connectorIds];
     const numOfConnectors = connectorIds.length;
-    // const cpMaxAmp = MAX_AMP * numOfConnectors;
+    if (numOfConnectors === 0) {
+        ids = [0];
+    }
 
-    let profiles = connectorIds.map(function mergeTxForConnector(connectorId) {
+    let profiles = ids.map(function mergeTxForConnector(connectorId) {
         let defaultProfiles = txDefaultProfile.filter(p => 
             p.connectorId === connectorId ||
             p.connectorId === 0  // connectorId=0 applies to all connectors
@@ -319,6 +333,9 @@ function extractPeriods(profiles=[]) {
         } = p;
 
         chargingSchedulePeriod = _.sortBy(chargingSchedulePeriod, 'startPeriod');
+
+        // handle scenario when multiple periods start at the same time
+        chargingSchedulePeriod = aggregateByMin(chargingSchedulePeriod, 'ts', 'limit');
 
         let startHours = new Date(startSchedule).getHours();
         let startMinutes = new Date(startSchedule).getMinutes();
@@ -460,7 +477,7 @@ function combining(stackedProfiles=[], maxAmp=MAX_AMP) {
 
     // clean up
     let filtered = [];
-    combined.forEach(function removeDuplicates(p, idx) {
+    combined.forEach(function removeDuplicatedLimit(p, idx) {
         if (idx === 0) {
             filtered.push(p);
         } else if (p.limit !== filtered[filtered.length - 1].limit) {
@@ -468,7 +485,20 @@ function combining(stackedProfiles=[], maxAmp=MAX_AMP) {
         }
     })
 
+    // in case two profiles occur at the same time, choose the one
+    // with lower limit
+    filtered = aggregateByMin(filtered, 'ts', 'limit');
+
     return filtered;
+}
+
+function aggregateByMin(data=[], group='ts', min='limit') {
+    const res = _(data)
+        .groupBy(group)
+        .map(objs => _.minBy(objs, min))
+        .value();
+
+    return res;
 }
 
 module.exports.stacking = stacking;
