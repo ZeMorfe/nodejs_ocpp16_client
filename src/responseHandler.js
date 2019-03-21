@@ -7,6 +7,12 @@ const requestHandler = require('./requestHandler');
 const CP = require('../data/chargepoints');
 const sendLocalList = require('../ocpp/sendLocalList');
 const triggerMessage = require('../ocpp/triggerMessage');
+const {
+    addProfile,
+    removeProfile,
+    compositeSchedule,
+    getLimitNow
+} = require('../ocpp/chargingProfiles');
 
 const setTimeoutPromise = util.promisify(setTimeout);
 
@@ -22,7 +28,9 @@ function responseHandler(
         addLog,
         getLogs,
         authList,
-        authCache
+        authCache,
+        getChargingProfiles,
+        setChargingProfiles
     },
     response
 ) {
@@ -40,6 +48,7 @@ function responseHandler(
                 res = composeResponse(messageId, { status: 'Accepted' });
                 wsOcppClient.send(JSON.stringify(res));
                 wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, undefined]));
+                removeProfile({ response: payload, getChargingProfiles, setChargingProfiles });
                 break;
             case 'GetConfiguration':
                 let configurationKey = CP[stationId].configurationKey;
@@ -60,41 +69,71 @@ function responseHandler(
                 wsOcppClient.send(JSON.stringify(res));
                 break;
             case 'SetChargingProfile':
-                res = composeResponse(messageId, { status: 'Accepted' });
+                let {
+                    connectorId,
+                    csChargingProfiles: {
+                        chargingProfileId,
+                        transactionId,
+                        stackLevel,
+                        chargingProfilePurpose,
+                        chargingProfileKind,
+                        recurrencyKind,
+                        validFrom,
+                        validTo,
+                        chargingSchedule: {
+                            duration,
+                            startSchedule,
+                            chargingRateUnit,
+                            chargingSchedulePeriod,
+                            minChargingRate
+                        }
+                    }
+                } = payload;
+
+                let status = 'Accepted';
+                if (chargingProfilePurpose === 'TxProfile') {
+                    // per page 20 under TxProfile in the specs
+                    let activeTx = getActiveTransaction();
+                    status = (activeTx) ? 'Accepted' : 'Rejected';
+                }
+                res = composeResponse(messageId, { status });
+
+                addProfile({
+                    newProfile: payload,
+                    getChargingProfiles,
+                    setChargingProfiles
+                });
+
                 wsOcppClient.send(JSON.stringify(res), () => {
-                    let {
-                        connectorId,
-                        csChargingProfiles: {
-                            chargingProfileId,
-                            transactionId,
-                            stackLevel,
-                            chargingProfilePurpose,
-                            chargingProfileKind,
-                            recurrencyKind,
-                            validFrom,
-                            validTo,
-                            chargingSchedule: {
-                                duration,
-                                startSchedule,
-                                chargingRateUnit,
-                                chargingSchedulePeriod,
-                                minChargingRate
-                            }
-                        }
-                    } = payload;
                     let defaultAmp = 30;
-                    let amp = chargingSchedulePeriod.reduce((res, sch) => {
-                        let {
-                            startPeriod,
-                            limit,
-                            numberPhases
-                        } = sch;
-                        if (Number(limit) < res) {
-                            return limit;
-                        } else {
-                            return res;
-                        }
-                    }, defaultAmp);
+                    // let amp = chargingSchedulePeriod.reduce((res, sch) => {
+                    //     let {
+                    //         startPeriod,
+                    //         limit,
+                    //         numberPhases
+                    //     } = sch;
+                    //     if (Number(limit) < res) {
+                    //         return limit;
+                    //     } else {
+                    //         return res;
+                    //     }
+                    // }, defaultAmp);
+                    let amp = defaultAmp;
+                    try {
+                        amp = getLimitNow({
+                            connectorId,
+                            chargingProfiles: getChargingProfiles()
+                        }) || defaultAmp;
+                        console.log('got amp limit', amp);
+                        let composite = compositeSchedule({
+                            connectorId,
+                            chargingProfiles: getChargingProfiles(),
+                            cpMaxAmp: 30
+                        });
+                        console.log('composite schedule', JSON.stringify(composite, null, 4));
+                    } catch(e) {
+                        console.log('Error in getting limit', e);
+                    }
                     let powerLimit = parseFloat(Number(amp) * 208 / 1000).toFixed(2);
                     wsBrowser.send(JSON.stringify([`${action}Conf`, powerLimit]));
                 });

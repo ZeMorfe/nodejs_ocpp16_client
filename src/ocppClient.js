@@ -12,6 +12,12 @@ function OCPPClient(CP, responseHandler) {
     const authCache = authorizationList({ type: 'cache' });
     const authList = authorizationList({ type: 'list' });
     let heartbeat = 3600;
+    let chargingProfiles = {
+        ChargePointMaxProfile: [],
+        TxDefaultProfile: [],
+        TxProfile: [],
+        composite: []
+    };
 
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
@@ -60,6 +66,14 @@ function OCPPClient(CP, responseHandler) {
         queue = queue.filter(q => q.msgId !== id);
     }
 
+    function getChargingProfiles() {
+        return chargingProfiles;
+    }
+
+    function setChargingProfiles(type, profile) {
+        chargingProfiles[type] = profile;
+    }
+
     const ws = new WebSocket(
         server,
         'ocpp1.6',
@@ -76,7 +90,9 @@ function OCPPClient(CP, responseHandler) {
         getQueue,
         addToQueue,
         getActiveTransaction,
-        setActiveTransaction
+        setActiveTransaction,
+        getChargingProfiles,
+        setChargingProfiles
     };
 
     const resHandler = partial(responseHandler, ocppClient);
