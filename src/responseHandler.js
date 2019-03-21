@@ -34,6 +34,9 @@ function responseHandler(
     },
     response
 ) {
+    const DEFAULT_AMP = 30;
+    const VOLTAGE = 208;
+
     function handleCall() {
         console.log('Handling server call');
 
@@ -44,11 +47,25 @@ function responseHandler(
         let res;
 
         switch (action) {
-            case 'ClearChargingProfile':
+            case 'ClearChargingProfile': {
                 res = composeResponse(messageId, { status: 'Accepted' });
                 wsOcppClient.send(JSON.stringify(res));
-                wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, undefined]));
+
                 removeProfile({ response: payload, getChargingProfiles, setChargingProfiles });
+
+                const { connectorId } = payload;
+                let amp = DEFAULT_AMP;
+                try {
+                    amp = getLimitNow({
+                        connectorId,
+                        chargingProfiles: getChargingProfiles()
+                    }) || DEFAULT_AMP;
+                } catch(e) {
+                    console.log('Error in getting limit', e);
+                }
+                let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
+                wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, powerLimit]));
+            }
                 break;
             case 'GetConfiguration':
                 let configurationKey = CP[stationId].configurationKey;
@@ -68,7 +85,7 @@ function responseHandler(
                 res = composeResponse(messageId, payloadConf)
                 wsOcppClient.send(JSON.stringify(res));
                 break;
-            case 'SetChargingProfile':
+            case 'SetChargingProfile': {
                 let {
                     connectorId,
                     csChargingProfiles: {
@@ -105,25 +122,12 @@ function responseHandler(
                 });
 
                 wsOcppClient.send(JSON.stringify(res), () => {
-                    let defaultAmp = 30;
-                    // let amp = chargingSchedulePeriod.reduce((res, sch) => {
-                    //     let {
-                    //         startPeriod,
-                    //         limit,
-                    //         numberPhases
-                    //     } = sch;
-                    //     if (Number(limit) < res) {
-                    //         return limit;
-                    //     } else {
-                    //         return res;
-                    //     }
-                    // }, defaultAmp);
-                    let amp = defaultAmp;
+                    let amp = DEFAULT_AMP;
                     try {
                         amp = getLimitNow({
                             connectorId,
                             chargingProfiles: getChargingProfiles()
-                        }) || defaultAmp;
+                        }) || DEFAULT_AMP;
                         console.log('got amp limit', amp);
                         let composite = compositeSchedule({
                             connectorId,
@@ -134,9 +138,10 @@ function responseHandler(
                     } catch(e) {
                         console.log('Error in getting limit', e);
                     }
-                    let powerLimit = parseFloat(Number(amp) * 208 / 1000).toFixed(2);
+                    let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
                     wsBrowser.send(JSON.stringify([`${action}Conf`, powerLimit]));
                 });
+            }
                 break;
             case 'TriggerMessage':
                 let implemented = triggerMessage.conf(payload);
