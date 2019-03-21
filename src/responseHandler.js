@@ -56,15 +56,53 @@ function responseHandler(
                 const { connectorId } = payload;
                 let amp = DEFAULT_AMP;
                 try {
+                    // recalculate the limit after profile removal
                     amp = getLimitNow({
                         connectorId,
-                        chargingProfiles: getChargingProfiles()
+                        chargingProfiles: getChargingProfiles(),
+                        cpMaxAmp: DEFAULT_AMP
                     }) || DEFAULT_AMP;
                 } catch(e) {
                     console.log('Error in getting limit', e);
                 }
                 let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
                 wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, powerLimit]));
+            }
+                break;
+            case 'GetCompositeSchedule': {
+                console.log('GetCompositeSchedule req', JSON.stringify(response, null, 4));
+                const { connectorId = 0 } = payload;
+                const composite = compositeSchedule({
+                    connectorId,
+                    chargingProfiles: getChargingProfiles(),
+                    cpMaxAmp: 30
+                });
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = 86400;
+                const periodsStartTime = composite[0].ts;
+                const periodsEndTime = Math.min(endOfDay, composite[composite.length - 1].ts);
+                const retPayload = {
+                    status: 'Accepted',
+                    connectorId,
+                    scheduleStart: startOfDay.toISOString(),
+                    chargingSchedule: {
+                        duration: periodsEndTime - periodsStartTime,
+                        chargingRateUnit: 'A',
+                        minChargingRate: 4,
+                        startSchedule: startOfDay.toISOString(),
+                        chargingSchedulePeriod: composite
+                            // remove the last item which clears the limit
+                            .filter((p, idx) => idx < composite.length - 1)
+                            .map(p => ({
+                                startPeriod: p.ts,
+                                numberPhases: p.numberPhases,
+                                limit: p.limit
+                            }))
+                    }
+                };
+                res = composeResponse(messageId, retPayload);
+                wsOcppClient.send(JSON.stringify(res));
             }
                 break;
             case 'GetConfiguration':
@@ -126,7 +164,8 @@ function responseHandler(
                     try {
                         amp = getLimitNow({
                             connectorId,
-                            chargingProfiles: getChargingProfiles()
+                            chargingProfiles: getChargingProfiles(),
+                            cpMaxAmp: DEFAULT_AMP
                         }) || DEFAULT_AMP;
                         console.log('got amp limit', amp);
                         let composite = compositeSchedule({
