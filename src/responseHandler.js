@@ -33,17 +33,21 @@ function responseHandler(
         getChargingProfiles,
         setChargingProfiles,
         setLimit,
-        meter
+        meter,
+        getRatings
     },
     response
 ) {
-    const DEFAULT_AMP = 30;
-    const VOLTAGE = 208;
+    const {
+        MAX_AMP: DEFAULT_AMP,
+        VOLTAGE
+    } = getRatings();
 
+    /**
+     * Handle server request
+     */
     function handleCall() {
         console.log('Handling server call');
-
-        wsBrowser.send(JSON.stringify(['OCPP', getLogs()]));
 
         const [_, messageId, action, payload] = response;
 
@@ -52,7 +56,9 @@ function responseHandler(
         switch (action) {
             case 'ClearChargingProfile': {
                 res = composeResponse(messageId, { status: 'Accepted' });
-                wsOcppClient.send(JSON.stringify(res));
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+                });
 
                 removeProfile({ response: payload, getChargingProfiles, setChargingProfiles });
 
@@ -69,13 +75,18 @@ function responseHandler(
                     console.log('Error in getting limit', e);
                 }
 
+                // update current limit
                 setLimit(amp);
+
+                // update meter
                 if (getActiveTransaction()) {
                     meter.finishLastMeterSession();
                     meter.initNewMeterSession();
                 }
 
-                let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
+                let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(3);
+
+                // notify UI
                 wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, powerLimit]));
             }
                 break;
@@ -85,7 +96,7 @@ function responseHandler(
                 const composite = compositeSchedule({
                     connectorId,
                     chargingProfiles: getChargingProfiles(),
-                    cpMaxAmp: 30
+                    cpMaxAmp: DEFAULT_AMP
                 });
                 const startOfDay = new Date();
                 startOfDay.setHours(0, 0, 0, 0);
@@ -112,26 +123,36 @@ function responseHandler(
                     }
                 };
                 res = composeResponse(messageId, retPayload);
-                wsOcppClient.send(JSON.stringify(res));
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+                });
             }
                 break;
             case 'GetConfiguration':
                 let configurationKey = CP[stationId].configurationKey;
                 res = composeResponse(messageId, { configurationKey });
-                wsOcppClient.send(JSON.stringify(res));
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+                });
                 break;
             case 'GetLocalListVersion':
                 res = composeResponse(messageId, { listVersion: auth.getVersion() });
-                wsOcppClient.send(JSON.stringify(res));
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+                });
                 break;
             case 'RemoteStopTransaction':
                 res = composeResponse(messageId, { status: 'Accepted' });
-                wsOcppClient.send(JSON.stringify(res));
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+                });
                 break;
             case 'SendLocalList':
                 let payloadConf = sendLocalList.conf(authList, payload);
                 res = composeResponse(messageId, payloadConf)
-                wsOcppClient.send(JSON.stringify(res));
+                wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+                });
                 break;
             case 'SetChargingProfile': {
                 let {
@@ -170,6 +191,8 @@ function responseHandler(
                 });
 
                 wsOcppClient.send(JSON.stringify(res), () => {
+                    addLog('REQ', res);
+
                     let amp = DEFAULT_AMP;
                     try {
                         amp = getLimitNow({
@@ -188,7 +211,10 @@ function responseHandler(
                         console.log('Error in getting limit', e);
                     }
 
+                    // update current limit
                     setLimit(amp);
+
+                    // update meter
                     if (getActiveTransaction()) {
                         meter.finishLastMeterSession();
                         meter.initNewMeterSession();
@@ -206,7 +232,9 @@ function responseHandler(
                     wsOcppClient.send(JSON.stringify(res));
                 } else {
                     res = composeResponse(messageId, { status: 'Accepted' });
-                    wsOcppClient.send(JSON.stringify(res));
+                    wsOcppClient.send(JSON.stringify(res), () => {
+                        addLog('REQ', res);
+                    });
 
                     setTimeoutPromise(5000).then(function respondToTrigger() {
                         let action = [payload.requestedMessage];
@@ -232,8 +260,18 @@ function responseHandler(
             default:
                 console.log(`${action} not supported`);
         }
+
+        // add some delay for the logs to be updated
+        setTimeoutPromise(200).then(() => {
+            wsBrowser.send(JSON.stringify(['OCPP', getLogs()]));
+        })
     }
 
+    /**
+     * Handle response from server to client request
+     * @param {object} states 
+     * @param {object} setStates 
+     */
     function handleCallResult(states, setStates) {
         console.log('Handling call result');
 

@@ -132,7 +132,7 @@ function getLimitNow({ connectorId, chargingProfiles, cpMaxAmp }) {
 /**
  * Create composite charging schedule from all valid charging profiles.
  * 
- * @param {object} param0 connectorId and charging profiles
+ * @param {object} param0 connectorId, charging profiles and max amp
  */
 function compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp }) {
     const {
@@ -195,7 +195,6 @@ function compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp }) {
     const stackedMax = stacking(chargePointMaxProfile);
 
     // combine max and tx profiles
-    // const cpMaxAmp = connectorId === 0 ? Math.max(connectorIds.length, 1) * MAX_AMP : MAX_AMP;
     const composite = combining([...stackedMax, ...merged], cpMaxAmp);
 
     return composite;
@@ -226,11 +225,11 @@ function combineConnectorProfiles({ connectorIds, txDefaultProfile, txProfile, c
     // convert profiles from absolute limits to differences relative to MAX_AMP.
     // +ve means limit relaxed, -ve means limit increased
     profiles = profiles.map(function profileDiff(profile) {
-        let limit = MAX_AMP;  // for one connector
+        let limit = cpMaxAmp;  // for one connector
         let pDiff = profile.map(p => {
             let diff = {
                 ...p,
-                limit: p.limit === -1 ? MAX_AMP - limit : p.limit - limit
+                limit: p.limit === -1 ? cpMaxAmp - limit : p.limit - limit
             };
             limit = p.limit;  // update
             return diff;

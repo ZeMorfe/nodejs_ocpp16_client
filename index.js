@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const url = require('url');
 const WebSocket = require('ws');
-const { partial } = require('lodash');
+const { partial, range } = require('lodash');
 const OCPPClient = require('./src/ocppClient');
 const requestHandler = require('./src/requestHandler');
 const CP = require('./data/chargepoints');
@@ -17,6 +17,7 @@ app.listen(5000, () => {
 });
 
 // server for ws connections from browser
+// one port for all connections
 const server = app.listen(5050);
 
 server.on('upgrade', function upgrade(request, socket, head) {
@@ -31,19 +32,27 @@ server.on('upgrade', function upgrade(request, socket, head) {
     }
 });
 
-const wss0 = spawnClient('/simulator', 0);
-const wss1 = spawnClient('/simulator', 1);
-const wsDict = { '/simulator0': wss0, '/simulator1': wss1 };
-const pathnames = ['/simulator0', '/simulator1'];
+const numOfCPs = CP.length;
+const wsDict = {};
+const pathnames = [];
+range(numOfCPs).forEach(function createClientForEachCP(idx) {
+    let wss = spawnClient('/simulator', idx);
+    let name = `/simulator${idx}`;
+    wsDict[name] = wss;
+    pathnames.push(name);
+})
 
 function spawnClient(endpoint, stationId) {
+    // for ws communication with the UI
     const wss = new WebSocket.Server({ noServer: true });
 
     wss.on('connection', (ws) => {
         console.log(`connected to ${endpoint + stationId}`);
 
+        // init response handler
         const resHandler = partial(responseHandler, stationId, ws);
 
+        // create OCPP client
         const ocppClient = OCPPClient(CP[stationId], resHandler);
 
         // send station info to the UI
@@ -51,6 +60,7 @@ function spawnClient(endpoint, stationId) {
 
         ws.on('close', () => {
             console.log('closed');
+            // close the ocpp client if the UI disconnects
             ocppClient.ws.close();
         });
         
@@ -60,6 +70,7 @@ function spawnClient(endpoint, stationId) {
             const msgFromUI = JSON.parse(raw);
             console.log(msgFromUI);
 
+            // pass requests from UI to the handler
             requestHandler(stationId, msgFromUI, ocppClient, ws);
         });
     });

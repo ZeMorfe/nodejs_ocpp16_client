@@ -1,13 +1,24 @@
+/**
+ * OCPP client
+ * 
+ * Requests to the server are handled in `requestHandler`.
+ * Responses from the server are handled in `responseHandler`.
+ * 
+ * States are stored in closures for testing purpose.
+ */
+
 const WebSocket = require('ws');
 const { partial } = require('lodash');
 const config = require('../config');
 const { MESSAGE_TYPE } = require('./ocpp');
 const authorizationList = require('./authorizationList');
 
-function OCPPClient(CP, responseHandler) {
-    const MAX_AMP = 30;
-    const VOLTAGE = 208;
 
+function OCPPClient(CP, responseHandler) {
+    const MAX_AMP = CP.ratings.amp;
+    const VOLTAGE = CP.ratings.voltage;
+
+    // init states
     let msgId = 1;
     let logs = [];
     let activeTransaction;
@@ -27,6 +38,7 @@ function OCPPClient(CP, responseHandler) {
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
 
+    // getters and setters
     function getMsgId() {
         return msgId.toString();
     }
@@ -126,12 +138,18 @@ function OCPPClient(CP, responseHandler) {
         meter = [];
     }
 
+    function getRatings() {
+        return { MAX_AMP, VOLTAGE };
+    }
+
+    // ws
     const ws = new WebSocket(
         server,
         'ocpp1.6',
         { headers: { Authorization: auth }}
     );
 
+    // ocpp client object passed to the handlers
     const ocppClient = {
         ws,
         authCache,
@@ -152,7 +170,8 @@ function OCPPClient(CP, responseHandler) {
             initNewMeterSession,
             finishLastMeterSession,
             clearMeter
-        }
+        },
+        getRatings
     };
 
     const resHandler = partial(responseHandler, ocppClient);
@@ -167,13 +186,17 @@ function OCPPClient(CP, responseHandler) {
         const [messageType] = response;
         const messageTypeText = MESSAGE_TYPE[`${messageType}`] || undefined;
 
+        // log incoming messages from the server
         addLog('CONF', response);
 
+        // handle incoming messages
         switch (messageTypeText) {
             case 'CALL':
+                // handle requests from the server, e.g. SetChargingProfile
                 resHandler(response).handleCall();
                 break;
             case 'CALLRESULT':
+                // handle responses from the server, e.g. StartTransaction
                 incMsgId();
                 resHandler(response).handleCallResult(
                     { queue, activeTransaction },

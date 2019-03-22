@@ -286,4 +286,43 @@ describe('Composite schedule', () => {
 
         console.log('combined', combined);
     })
+
+    it('default only', () => {
+        const defaultProfile = [{
+            "connectorId": 0,
+            "csChargingProfiles": {
+                "chargingProfileId": 1,
+                "stackLevel": 3,
+                "chargingProfilePurpose": "TxDefaultProfile",
+                "chargingProfileKind": "Absolute",
+                "recurrencyKind": "Daily",
+                "validFrom": "2019-03-05T22:46:42Z",
+                "validTo": "2019-04-06T22:46:42Z",
+                "chargingSchedule": {
+                    "duration": 3600,
+                    "chargingRateUnit": "A",
+                    "minChargingRate": 4,
+                    "startSchedule": "2019-03-05T10:00:00Z",
+                    "chargingSchedulePeriod": [
+                        {
+                            "startPeriod": 0,
+                            "numberPhases": 3,
+                            "limit": 10
+                        }
+                    ]
+                }
+            }
+        }];
+
+        const composite = compositeSchedule({
+            connectorId: 0,
+            chargingProfiles: {
+                TxDefaultProfile: defaultProfile,
+                ChargePointMaxProfile: [],
+                TxProfile: []
+            },
+            cpMaxAmp: 30
+        });
+        console.log(JSON.stringify(composite, null, 4));
+    })
 })
