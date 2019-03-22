@@ -220,7 +220,7 @@ function responseHandler(
                         meter.initNewMeterSession();
                     }
 
-                    let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
+                    let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(3);
                     wsBrowser.send(JSON.stringify([`${action}Conf`, powerLimit]));
                 });
             }

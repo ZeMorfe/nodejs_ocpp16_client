@@ -231,7 +231,7 @@ function combineConnectorProfiles({ connectorIds, txDefaultProfile, txProfile, c
                 ...p,
                 limit: p.limit === -1 ? cpMaxAmp - limit : p.limit - limit
             };
-            limit = p.limit;  // update
+            limit = p.limit === -1 ? cpMaxAmp : p.limit;  // update
             return diff;
         });
         return pDiff;
