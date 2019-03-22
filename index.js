@@ -1,12 +1,15 @@
 const express = require('express');
 const path = require('path');
 const url = require('url');
+const util = require('util');
 const WebSocket = require('ws');
 const { partial, range } = require('lodash');
 const OCPPClient = require('./src/ocppClient');
 const requestHandler = require('./src/requestHandler');
 const CP = require('./data/chargepoints');
 const responseHandler = require('./src/responseHandler');
+
+const setTimeoutPromise = util.promisify(setTimeout);
 
 const app = express();
 
@@ -34,15 +37,17 @@ server.on('upgrade', function upgrade(request, socket, head) {
 
 const numOfCPs = CP.length;
 const wsDict = {};
+const ocppClients = [];  // for cleanup only
 const pathnames = [];
+
 range(numOfCPs).forEach(function createClientForEachCP(idx) {
-    let wss = spawnClient('/simulator', idx);
+    let wss = spawnClient('/simulator', idx, setOcppClient);
     let name = `/simulator${idx}`;
     wsDict[name] = wss;
     pathnames.push(name);
 })
 
-function spawnClient(endpoint, stationId) {
+function spawnClient(endpoint, stationId, setOcppClient) {
     // for ws communication with the UI
     const wss = new WebSocket.Server({ noServer: true });
 
@@ -54,6 +59,9 @@ function spawnClient(endpoint, stationId) {
 
         // create OCPP client
         const ocppClient = OCPPClient(CP[stationId], resHandler);
+
+        // callback
+        setOcppClient(ocppClient);
 
         // send station info to the UI
         ws.send(JSON.stringify(['Startup', CP[stationId]]));
@@ -76,4 +84,79 @@ function spawnClient(endpoint, stationId) {
     });
 
     return wss;
+}
+
+function setOcppClient(client) {
+    ocppClients.push(client);
+}
+
+// handle SIGINT on Windows
+if (process.platform === "win32") {
+    let rl = require("readline").createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    rl.on("SIGINT", function () {
+        process.emit("SIGINT");
+    });
+}
+
+process.on("SIGINT", async function () {
+    await cleanup();
+    process.exit();
+});
+
+process.on('uncaughtException', async (err) => {
+    console.error('Error', err);
+    await cleanup();
+    process.exit(1);
+});
+
+/**
+ * Stop active transactions on exit or error. Otherwise the transactions
+ * will get stuck being active forever on the server.
+ * In case a transaction is not stopped properly, you need to manualy send
+ * a StopTransaction request with the `transactionId` of the prolematic tx.
+ */
+async function cleanup() {
+    console.log('cleaning up before exit...');
+
+    const res = ocppClients.map(client => {
+        return new Promise(async (resolve, reject) => {
+            if (client) {
+                let activeTransaction = client.getActiveTransaction();
+    
+                console.log('activeTransaction before exit', JSON.stringify(activeTransaction, null, 4));
+    
+                if (activeTransaction) {
+                    // create a dummy StopTransaction request to kill the tx
+                    let { messageId, transactionId, idTag } = activeTransaction;
+                    let payload = {
+                        meterStop: 0,
+                        timestamp: new Date().toISOString(),
+                        transactionId,
+                        idTag,
+                        reason: 'Local'
+                    };
+                    let message = [2, messageId, 'StopTransaction', payload];
+    
+                    client.ws.send(JSON.stringify(message), () => {
+                        // add to queue for handling StopTransaction conf
+                        let pendingReq = { messageId, action: 'StopTransaction', ...payload };
+                        client.addToQueue(pendingReq);
+                    });
+                }
+            } else {
+                console.error('client undefined');
+            }
+
+            // do not close ws until the client receives the StopTransaction conf
+            await setTimeoutPromise(1000);
+            resolve(client.ws.close());
+        });
+    });
+    
+    await Promise.all(res);
+    console.log('Exited cleanly');
 }
