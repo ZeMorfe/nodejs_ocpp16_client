@@ -5,6 +5,9 @@ const { MESSAGE_TYPE } = require('./ocpp');
 const authorizationList = require('./authorizationList');
 
 function OCPPClient(CP, responseHandler) {
+    const MAX_AMP = 30;
+    const VOLTAGE = 208;
+
     let msgId = 1;
     let logs = [];
     let activeTransaction;
@@ -18,6 +21,8 @@ function OCPPClient(CP, responseHandler) {
         TxProfile: [],
         composite: []
     };
+    let limit = MAX_AMP;
+    let meter = [];  // [{ start, end, kw }, ...]
 
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
@@ -74,6 +79,53 @@ function OCPPClient(CP, responseHandler) {
         chargingProfiles[type] = profile;
     }
 
+    function getLimit() {
+        return limit;
+    }
+
+    function setLimit(value=MAX_AMP) {
+        limit = Math.max(0, Math.min(value, MAX_AMP));
+    }
+
+    function getMeter() {
+        const kwhInTx = meter
+            .filter(m => m.end)
+            .reduce((accum, m) => {
+                let duration = (m.end - m.start)/1000/3600;  // hours
+                let kwhThisSession = m.kw * duration;
+                return accum + kwhThisSession;
+            }, 0);
+
+        return kwhInTx.toFixed(3);
+    }
+
+    function initNewMeterSession() {
+        const now = Date.now();
+        meter.push({
+            start: now,
+            end: undefined,
+            kw: (limit * VOLTAGE / 1000).toFixed(3)
+        })
+    }
+
+    function finishLastMeterSession() {
+        const now = Date.now();
+        const pendingIdx = meter.length - 1;
+        if (pendingIdx > -1) {
+            const session = {
+                start: meter[pendingIdx].start,
+                end: now,
+                kw: meter[pendingIdx].kw
+            };
+
+            meter[pendingIdx] = session;
+        }
+    }
+
+    function clearMeter() {
+        meter = [];
+    }
+
     const ws = new WebSocket(
         server,
         'ocpp1.6',
@@ -92,7 +144,15 @@ function OCPPClient(CP, responseHandler) {
         getActiveTransaction,
         setActiveTransaction,
         getChargingProfiles,
-        setChargingProfiles
+        setChargingProfiles,
+        getLimit,
+        setLimit,
+        meter: {
+            getMeter,
+            initNewMeterSession,
+            finishLastMeterSession,
+            clearMeter
+        }
     };
 
     const resHandler = partial(responseHandler, ocppClient);

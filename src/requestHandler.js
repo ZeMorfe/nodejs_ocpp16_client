@@ -15,7 +15,8 @@ const requestHandler = (
         addLog,
         getLogs,
         authList,
-        authCache
+        authCache,
+        meter
     },
     wsUI
 ) => {
@@ -23,7 +24,7 @@ const requestHandler = (
     const [action] = messageFromUI;
     const messageId = getMsgId();
     const { transactionId } = getActiveTransaction() || {};
-    const payload = getPayload(stationId, messageFromUI, { transactionId });
+    const payload = getPayload(stationId, messageFromUI, { transactionId, meter });
     const req = [messageType, messageId, action, payload];
 
     const isValidAction = VALID_ACTIONS.includes(action);
@@ -115,7 +116,7 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
             break;
         case 'StartTransaction':
             timestamp = new Date().toISOString();
-            payload = { meterStart: 10, timestamp, ...payloadFromStation };
+            payload = { meterStart: 0, timestamp, ...payloadFromStation };
             break;
         case 'StatusNotification': {
             let connectorId = 0;
@@ -129,9 +130,14 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
             break;
         case 'StopTransaction':
             timestamp = new Date().toISOString();
-            const { transactionId } = extras;
+            const { transactionId, meter } = extras;
+
+            meter.finishLastMeterSession();
+            let kwh = meter.getMeter();
+            meter.clearMeter();
+
             payload = {
-                meterStop: 15,
+                meterStop: kwh,
                 timestamp,
                 transactionId,
                 idTag: payloadFromStation.idTag,

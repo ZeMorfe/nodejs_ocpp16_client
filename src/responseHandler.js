@@ -30,7 +30,9 @@ function responseHandler(
         authList,
         authCache,
         getChargingProfiles,
-        setChargingProfiles
+        setChargingProfiles,
+        setLimit,
+        meter
     },
     response
 ) {
@@ -65,6 +67,13 @@ function responseHandler(
                 } catch(e) {
                     console.log('Error in getting limit', e);
                 }
+
+                setLimit(amp);
+                if (getActiveTransaction()) {
+                    meter.finishLastSession();
+                    meter.initNewMeterSession();
+                }
+
                 let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
                 wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, powerLimit]));
             }
@@ -177,6 +186,13 @@ function responseHandler(
                     } catch(e) {
                         console.log('Error in getting limit', e);
                     }
+
+                    setLimit(amp);
+                    if (getActiveTransaction()) {
+                        meter.finishLastMeterSession();
+                        meter.initNewMeterSession();
+                    }
+
                     let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(2);
                     wsBrowser.send(JSON.stringify([`${action}Conf`, powerLimit]));
                 });
@@ -226,7 +242,7 @@ function responseHandler(
         // req action waiting for conf
         const pending = states.queue.find(q => q.messageId === messageId);
 
-        const handlerFns = callResulthandler(wsBrowser, pending, setStates, authCache);
+        const handlerFns = callResulthandler(wsBrowser, pending, setStates, authCache, meter);
 
         handlerFns[pending.action](payload);
 
@@ -242,7 +258,7 @@ function responseHandler(
     return { handleCall, handleCallResult, handleCallError };
 }
 
-const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
+const callResulthandler = (wsBrowser, pending, setStates, authCache, meter) => {
     const { action } = pending;
 
     return {
@@ -277,6 +293,9 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache) => {
             const isAccepted = idTagInfo.status === 'Accepted';
             if (isAccepted) {
                 setStates.setActiveTransaction({ ...pending, transactionId });
+
+                // start meter after conf
+                meter.initNewMeterSession();
             }
             // notify the UI
             wsBrowser.send(JSON.stringify([`${action}Conf`, isAccepted]));
