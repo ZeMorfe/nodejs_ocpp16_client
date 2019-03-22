@@ -12,8 +12,11 @@ const layout = {
 const App = () => {
     return (
         <div style={layout}>
-            {e(window.Station, { stationId: 0 })}
-            {e(window.Station, { stationId: 1 })}
+        {
+            CP.map((cp, idx) => (
+                e(window.Station, { stationProps: cp, stationId: idx })
+            ))
+        }
         </div>
     )
 };

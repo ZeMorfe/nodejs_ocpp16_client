@@ -14,6 +14,8 @@ const setTimeoutPromise = util.promisify(setTimeout);
 const app = express();
 
 app.use(express.static(path.join(__dirname, 'app')));
+app.use('/data/users.js', express.static(path.join(__dirname, './data/users.js')));
+app.use('/data/chargepoints.js', express.static(path.join(__dirname, './data/chargepoints.js')));
 
 app.listen(5000, () => {
     console.log('OCPP 1.6 client');
@@ -62,9 +64,6 @@ function spawnClient(endpoint, stationId, setOcppClient) {
 
         // callback
         setOcppClient(ocppClient);
-
-        // send station info to the UI
-        ws.send(JSON.stringify(['Startup', CP[stationId]]));
 
         ws.on('close', () => {
             console.log('closed');

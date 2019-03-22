@@ -16,10 +16,8 @@ const actionMap = {
     'status': 'StatusNotification',
 };
 
-const idTags = ['23F532C35', '829FEAB'];
-
 function composeMessage(action, stationId=0) {
-    const idTag = idTags[stationId];
+    const idTag = USERS[stationId].idTag;  // global var
     let message;
     switch (action) {
         case 'Authorize':
@@ -45,10 +43,9 @@ function composeMessage(action, stationId=0) {
     return message;
 }
 
-window.Station = ({ stationId }) => {
+window.Station = ({ stationProps, stationId }) => {
     const [socket, setSocket] = React.useState();
     const [online, setOnline] = React.useState();
-    const [stationProps, setStationProps] = React.useState(stationId);
     const [authorized, setAuthorized] = React.useState(false);  
     const [message, setMessage] = React.useState();
     const [logs, setLogs] = React.useState([]);
@@ -85,9 +82,6 @@ window.Station = ({ stationId }) => {
             let [messageType, payload] = data;
 
             switch (messageType) {
-                case 'Startup':
-                    setStationProps(payload);
-                    break;
                 case 'OCPP':
                     setLogs(payload);
                     break;
@@ -116,11 +110,13 @@ window.Station = ({ stationId }) => {
         return () => { ws.close() };
     }, []);
 
+    const maxPower = stationProps.ratings.amp * stationProps.ratings.voltage / 1000;
+
     const status = {
         header: stationProps.name,
         status: `Status: ${online ? 'online' : 'offline'}`,
         charging,
-        power: (((limit === undefined || limit === null) ? 6.6 : Number(limit))) * Number(charging)
+        power: (((limit === undefined || limit === null) ? maxPower : Number(limit))) * Number(charging)
     };
 
     return (
