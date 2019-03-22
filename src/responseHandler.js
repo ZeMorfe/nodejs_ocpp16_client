@@ -254,7 +254,7 @@ function responseHandler(
 
         handlerFns[pending.action](payload);
 
-        setStates.popQueue(messageId);
+        setStates.popQueue(messageId.toString());
     }
 
     function handleCallError() {

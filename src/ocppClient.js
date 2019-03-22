@@ -68,7 +68,7 @@ function OCPPClient(CP, responseHandler) {
     }
 
     function popQueue(id) {
-        queue = queue.filter(q => q.msgId !== id);
+        queue = queue.filter(q => q.messageId !== id);
     }
 
     function getChargingProfiles() {

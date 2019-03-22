@@ -39,6 +39,7 @@ const requestHandler = (
 
         if (isAuthorized && isValidRequest) {
             console.log('Already authorized');
+            wsUI.send(JSON.stringify([`${action}Conf`, isAuthorized]));
         } else if (!isAuthorized && isValidRequest) {
             sendMessage(ws, req, addToQueue, addLog, sendLogsToUI(wsUI, getLogs()));
         } else {
