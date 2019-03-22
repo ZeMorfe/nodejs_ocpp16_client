@@ -98,6 +98,10 @@ function removeProfile({ response, getChargingProfiles, setChargingProfiles }) {
     }
 }
 
+function removeTxProfile(setChargingProfiles) {
+    setChargingProfiles('TxProfile', []);
+}
+
 /**
  * Calculate the limit at the moment
  * 
@@ -509,3 +513,4 @@ module.exports.combineConnectorProfiles = combineConnectorProfiles;
 module.exports.addProfile = addProfile;
 module.exports.getLimitNow = getLimitNow;
 module.exports.removeProfile = removeProfile;
+module.exports.removeTxProfile = removeTxProfile;

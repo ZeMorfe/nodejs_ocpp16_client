@@ -11,7 +11,8 @@ const {
     addProfile,
     removeProfile,
     compositeSchedule,
-    getLimitNow
+    getLimitNow,
+    removeTxProfile
 } = require('../ocpp/chargingProfiles');
 
 const setTimeoutPromise = util.promisify(setTimeout);
@@ -70,7 +71,7 @@ function responseHandler(
 
                 setLimit(amp);
                 if (getActiveTransaction()) {
-                    meter.finishLastSession();
+                    meter.finishLastMeterSession();
                     meter.initNewMeterSession();
                 }
 
@@ -242,7 +243,14 @@ function responseHandler(
         // req action waiting for conf
         const pending = states.queue.find(q => q.messageId === messageId);
 
-        const handlerFns = callResulthandler(wsBrowser, pending, setStates, authCache, meter);
+        const handlerFns = callResulthandler(
+            wsBrowser,
+            pending,
+            setStates,
+            authCache,
+            meter,
+            { DEFAULT_AMP, getChargingProfiles, setChargingProfiles, setLimit }
+        );
 
         handlerFns[pending.action](payload);
 
@@ -258,7 +266,14 @@ function responseHandler(
     return { handleCall, handleCallResult, handleCallError };
 }
 
-const callResulthandler = (wsBrowser, pending, setStates, authCache, meter) => {
+const callResulthandler = (
+    wsBrowser,
+    pending,
+    setStates,
+    authCache,
+    meter,
+    { DEFAULT_AMP, getChargingProfiles, setChargingProfiles, setLimit }
+) => {
     const { action } = pending;
 
     return {
@@ -309,6 +324,24 @@ const callResulthandler = (wsBrowser, pending, setStates, authCache, meter) => {
             const isAccepted = idTagInfo.status === 'Accepted';
             if (isAccepted) {
                 setStates.setActiveTransaction(undefined);
+
+                // clear TxProfiles after transaction
+                removeTxProfile(setChargingProfiles);
+                let amp = DEFAULT_AMP;
+                try {
+                    // recalculate the limit after profile removal
+                    amp = getLimitNow({
+                        connectorId: 0,
+                        chargingProfiles: getChargingProfiles(),
+                        cpMaxAmp: DEFAULT_AMP
+                    }) || DEFAULT_AMP;
+                } catch(e) {
+                    console.log('Error in getting limit', e);
+                }
+
+                setLimit(amp);
+
+                console.log('Amp after stop tx', amp);
             }
             // notify the UI
             wsBrowser.send(JSON.stringify([`${action}Conf`, isAccepted]));
