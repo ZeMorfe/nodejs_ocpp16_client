@@ -19,8 +19,9 @@ CREATE TABLE centralSmartChargingGroup (
 DROP TABLE IF EXISTS chargepointGroup;
 CREATE TABLE chargepointGroup (
     chargepointId INT NOT NULL,
+    connectorId INT NOT NULL,
     groupId INT NOT NULL,
-    PRIMARY KEY (chargepointId, groupId)
+    PRIMARY KEY (chargepointId, connectorId, groupId)
 
     -- CONSTRAINT chargepoint_id
     -- FOREIGN KEY (chargepointId)
@@ -81,9 +82,9 @@ END
 $$
 DELIMITER ;
 
-DROP FUNCTION IF EXISTS `getNumOfChargepointsInGroup`;
+DROP FUNCTION IF EXISTS `getNumOfConnectorsInGroup`;
 DELIMITER $$
-CREATE FUNCTION `getNumOfChargepointsInGroup` (
+CREATE FUNCTION `getNumOfConnectorsInGroup` (
     groupId INT
 ) RETURNS INT
 BEGIN
@@ -127,7 +128,7 @@ CREATE PROCEDURE CENTRAL_SMART_CHARGING (
     IN groupId INT
 )
 BEGIN
-    DECLARE numOfChargepoints INT DEFAULT 0;
+    DECLARE numOfConnectors INT DEFAULT 0;
     DECLARE numOfActiveTx INT DEFAULT 0;
     DECLARE r_cp VARCHAR(20);
     DECLARE r_chargingProfileId INT;
@@ -153,8 +154,8 @@ BEGIN
     DECLARE CONTINUE HANDLER 
         FOR NOT FOUND SET v_finished = 1;
 
-    -- number of chargepoints in the group
-    SELECT COUNT(*) INTO numOfChargepoints
+    -- number of connectors in the group
+    SELECT COUNT(*) INTO numOfConnectors
     FROM chargepointGroup cpg WHERE cpg.groupId = groupId;
 
     -- number of active transactions related to the group
@@ -167,7 +168,7 @@ BEGIN
     );
 
     -- apply when all chargepoints in the group are in use
-    IF numOfActiveTx >= numOfChargepoints THEN
+    IF numOfActiveTx >= numOfConnectors THEN
         OPEN cpCursor;
         
         -- set TxProfile for each connector (connectorId must be > 0)
@@ -368,7 +369,7 @@ BEGIN
 
     -- TxProfile only
     IF chargingProfileId > 0 AND chargingProfilePurposeTypeId = TxProfile THEN
-        SET numOfCpsInGroup = getNumOfChargepointsInGroup(groupId);
+        SET numOfCpsInGroup = getNumOfConnectorsInGroup(groupId);
         SET numOfActiveTxInGroup = getNumOfActiveTxInGroup(groupId);
 
         SELECT c.HTTP_CP INTO cp
