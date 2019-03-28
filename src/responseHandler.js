@@ -33,8 +33,10 @@ function responseHandler(
         getChargingProfiles,
         setChargingProfiles,
         setLimit,
+        getLimit,
         meter,
-        getRatings
+        getRatings,
+        scheduler
     },
     response
 ) {
@@ -64,6 +66,7 @@ function responseHandler(
 
                 const { connectorId } = payload;
                 let amp = DEFAULT_AMP;
+                let composite = null;
                 try {
                     // recalculate the limit after profile removal
                     amp = getLimitNow({
@@ -71,23 +74,21 @@ function responseHandler(
                         chargingProfiles: getChargingProfiles(),
                         cpMaxAmp: DEFAULT_AMP
                     }) || DEFAULT_AMP;
+
+                    composite = compositeSchedule({
+                        connectorId,
+                        chargingProfiles: getChargingProfiles(),
+                        cpMaxAmp: DEFAULT_AMP
+                    });
                 } catch(e) {
                     console.log('Error in getting limit', e);
                 }
 
-                // update current limit
-                setLimit(amp);
+                // update amp limit and notify UI
+                updateLimit(amp);
 
-                // update meter
-                if (getActiveTransaction()) {
-                    meter.finishLastMeterSession();
-                    meter.initNewMeterSession();
-                }
-
-                let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(3);
-
-                // notify UI
-                wsBrowser.send(JSON.stringify([`SetChargingProfileConf`, powerLimit]));
+                // cancel the scheduler corresponding to the removed profile
+                scheduler.removeSchedules(composite);
             }
                 break;
             case 'GetCompositeSchedule': {
@@ -194,6 +195,7 @@ function responseHandler(
                     addLog('REQ', res);
 
                     let amp = DEFAULT_AMP;
+                    let composite = [];
                     try {
                         amp = getLimitNow({
                             connectorId,
@@ -201,27 +203,21 @@ function responseHandler(
                             cpMaxAmp: DEFAULT_AMP
                         }) || DEFAULT_AMP;
                         console.log('got amp limit', amp);
-                        let composite = compositeSchedule({
+                        composite = compositeSchedule({
                             connectorId,
                             chargingProfiles: getChargingProfiles(),
-                            cpMaxAmp: 30
+                            cpMaxAmp: DEFAULT_AMP
                         });
                         console.log('composite schedule', JSON.stringify(composite, null, 4));
                     } catch(e) {
                         console.log('Error in getting limit', e);
                     }
 
-                    // update current limit
-                    setLimit(amp);
+                    // update amp limit and notify UI
+                    updateLimit(amp);
 
-                    // update meter
-                    if (getActiveTransaction()) {
-                        meter.finishLastMeterSession();
-                        meter.initNewMeterSession();
-                    }
-
-                    let powerLimit = parseFloat(Number(amp) * VOLTAGE / 1000).toFixed(3);
-                    wsBrowser.send(JSON.stringify([`${action}Conf`, powerLimit]));
+                    // setup scheduler to notify UI when charging profile is done
+                    scheduler.updateSchedules(composite, updateLimit);
                 });
             }
                 break;
@@ -265,6 +261,30 @@ function responseHandler(
         setTimeoutPromise(200).then(() => {
             wsBrowser.send(JSON.stringify(['OCPP', getLogs()]));
         })
+    }
+
+    /**
+     * Send new current limit to the UI
+     * @param {number} lim amp limit
+     */
+    function updateLimit(lim) {
+        const limitNow = getLimit();
+
+        if (limitNow === lim) {
+            console.log('Limit not changed. No op.');
+            return;
+        }
+
+        setLimit(lim);  // update current limit
+
+        // update meter
+        if (getActiveTransaction()) {
+            meter.finishLastMeterSession();
+            meter.initNewMeterSession();
+        }
+
+        let powerLimit = parseFloat(Number(lim) * VOLTAGE / 1000).toFixed(3);
+        wsBrowser.send(JSON.stringify(['SetChargingProfileConf', powerLimit]));
     }
 
     /**

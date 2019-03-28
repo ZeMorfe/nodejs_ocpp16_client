@@ -12,6 +12,7 @@ const { partial } = require('lodash');
 const config = require('../config');
 const { MESSAGE_TYPE } = require('./ocpp');
 const authorizationList = require('./authorizationList');
+const scheduler = require('./scheduler');
 
 
 function OCPPClient(CP, responseHandler) {
@@ -34,6 +35,8 @@ function OCPPClient(CP, responseHandler) {
     };
     let limit = MAX_AMP;
     let meter = [];  // [{ start, end, kw }, ...]
+
+    let profileScheduler = scheduler();
 
     const server = `${config.OCPPServer}/${CP['name']}`;
     const auth = "Basic " + Buffer.from(`${CP['user']}:${CP['pass']}`).toString('base64');
@@ -171,7 +174,8 @@ function OCPPClient(CP, responseHandler) {
             finishLastMeterSession,
             clearMeter
         },
-        getRatings
+        getRatings,
+        scheduler: profileScheduler
     };
 
     const resHandler = partial(responseHandler, ocppClient);
