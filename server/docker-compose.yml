@@ -1,0 +1,45 @@
+version: "3"
+
+services:
+  ocpp-server-image:
+    build: .
+    image: ocpp-server-image
+    container_name: ocpp-server-image
+  ocpp-mysql:
+    container_name: ocpp-mysql
+    image: mysql:5.7
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    networks:
+      ocpp-network:
+        ipv4_address: 172.18.0.2
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./sql:/sql
+      - ./sql/run-sql.sh:/docker-entrypoint-initdb.d/1-run-sql.sh
+      - ./db:/var/lib/mysql
+  ocpp-server:
+    container_name: ocpp-server
+    image: ocpp-server-image
+    depends_on:
+      - ocpp-server-image
+    networks:
+      ocpp-network:
+        ipv4_address: 172.18.0.3
+    ports:
+      - "8080:8080"
+      - "8000:8000"
+      - "3000:3000"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ocpp:/ocpp
+    command: bash -c "chmod +x /ocpp/run-ocpp.sh && /ocpp/run-ocpp.sh"
+
+networks:
+  ocpp-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16

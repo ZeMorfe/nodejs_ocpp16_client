@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:16.04
 
 EXPOSE 8000
 EXPOSE 8080
@@ -10,7 +10,8 @@ RUN apt-get update && \
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y install apache2 wget \
     make mercurial gcc libmodbus-dev libjson-c-dev libhpdf-dev \
     libmysqlclient-dev openssl libssl-dev cmake unzip php-db \
-    php-pear g++ flex bison
+    php-pear g++ flex bison \
+    git
 RUN pear install DB && \
     pear install mail
 
@@ -23,12 +24,12 @@ RUN a2enmod cgi && /etc/init.d/apache2 restart
 # LIBWEBSOCKETS 2.4
 
 RUN apt-get -y remove libwebsockets-dev
-RUN wget https://github.com/warmcat/libwebsockets/archive/v2.4-stable.zip && \
-    unzip v2.4-stable.zip
-WORKDIR /libwebsockets-2.4-stable/
+RUN git clone https://github.com/warmcat/libwebsockets
+WORKDIR /libwebsockets
+RUN git reset --hard v3.0.0
 RUN mkdir build
-WORKDIR /libwebsockets-2.4-stable/build
-RUN cmake .. && make && make install
+WORKDIR /libwebsockets/build
+RUN cmake .. && make && make install && ldconfig
 
 # SOAP, if needed
 # WORKDIR /
@@ -55,10 +56,3 @@ RUN cp -r opt/ocpp /opt/ocpp && \
     cp -r evportal/php /var/www/php && \
     cp -r evportal/html/* /var/www/html/ && \
     cp -r evportal/www/* /var/www/html/
-
-RUN mkdir /ocpp_tools
-COPY ./run.sh /ocpp_tools
-
-# run when container is started
-RUN ["chmod", "+x", "/ocpp_tools/run.sh"]
-CMD /ocpp_tools/run.sh

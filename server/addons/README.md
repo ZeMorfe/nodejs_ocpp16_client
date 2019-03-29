@@ -8,36 +8,22 @@ Smart charging is implemented in SQL procedures and the C code only invokes the 
 
 ## How it works
 
-Smart charging is initiated when all the charge points in a smart _charging group_ are in use. You need to define, in a MySQL table, the smart charging group and the charging profile on each charge point. The central system sends a `SetChargingProfile` request to each charge point and adds the profiles to the `chargingProfileAssigned` table. Note the profiles are `TxProfile` typed, meaning they should be cleared after transaction.
+Logics are implemented in `sql/smart_charging.sql` as sql procedures. `ocpp-server-ocpp.c` invokes the procedures in LWS writeable and receive callbacks.
 
-When a charge point in the group stops transaction, the central system sends a `ClearChargingProfile` request to each charge point in the group.
+The number of active transactions and number of connectors in a smart charging group determine when to start smart charging. You need to create a smart charging group with a `TxProfile` to be applied to each connector in the group. E.g. if you have two single-port charge points in the group, the limit of the profile should be half of the total limit.
 
-The composition of profiles, `ChargePointMaxProfile` and `TxDefaultProfile`/`TxProfile`, are implemented on the client side following the OCPP specs.
+The `TxProfile` should have a relative start time (i.e. starts when a transaction starts). The duration can be 0 since the profile will be deleted after the transaction. You need to define a charging period for the limit. The period can have a delayed start time but it should be 0 if you want start the limit right after the transaction starts.
 
-## Installation
+In `StartTransaction` event, the server checks if all the connectors in the smart charging group are in use. If so, it adds two `SetChargingProfile` requests to the `outboundRequest` table (one request for each charge point). On the next LWS writeable event, it sends the `SetChargingProfile` requests to the OCPP client.
 
-1. Download and install OpenOCPP
-1. Create an `addons` folder in `source` in the OpenOCPP download
-1. Copy `smart-charging.c` and `smart-charging.h` to the `addons` folder
-1. add `addons/smart-charging.o` to the end of line 17 in `source/makefile` to include smart charging in the `ocpp_server` binary
-1. add procedure invocation in `source/server/ocpp-server-ocpp.c`:
+In `StopTransaction` event, if the connectors have ongoing TxProfile, the server adds two `ClearChargingProfile` requests to `outboundRequest` which are sent to the OCPP client on the next LWS writeable callback.
 
-```c
-#include "../addons/smart-charging.h"
+Once the client acknowledges the `ClearChargingProfile` request and responds with `ClearChargingProfile` confirmation, the server removes the assigned TxProfile from the table `chargingProfileAssigned`. Charging profiles, e.g. max or default profiles, in `chargingProfileAssigned` will be sent to the OCPP client when the client reconnects to the server.
 
-...
+The OCPP client stores all the assigned charging profiles and computes the composite profile that combines `ChargePointMaxProfile`, `TxDefaultProfile` and `TxProfile`. Real-time charging limit, e.g. amperage, is the limit in the composite profile at the current time. The client sets up schedulers for all the limit changes in the composite profile. E.g. if you setup a default profile with aboslute start time at 9am, a scheduler will update the limit at 9am.
 
-// add this in the `LWS_CALLBACK_SERVER_WRITEABLE` callback
-// after the first `lws_write`
-central_smart_charging(cmds[i].cmd, pss);
+## Add smart charging group
 
-// add this in the `LWS_CALLBACK_RECEIVE` callback
-// in the `MessageCallResult` case after the `callresults` function
-if (!strcasecmp(callresults[i].cmd, OCPP_CLEARCHARGINGPROFILE)) {
-    drop_assigned_txprofile(pss);
-}
-```
-
-6. recompile and start the ocpp server
-7. run `cat smart_charging.sql | mysql -uocpp -pocpp ocpp` to load the SQL procedures that implement smart charging
-8. add smart charging groups to `centralSmartChargingGroup` and `chargepointGroup` tables. The charge points in the same group are assumed to, virtually, share the same circuit. Smart charging is only triggered when all the charge points in a group are in use
+1. Create two charge points and users and a `TxProfile` from the admin portal `localhost/admin.cgi`. The `TxProfile` should have a relative start time so it's applied right after a transaction starts. The duration can be 0 since the profile will be cleared after the transaction. You also need to create a charging period with a current limit (amperage). The start time of the period should be 0 if you want the limit to apply at the start of the transaction.
+1. Look up `chargepointId`, `connectorId` and `chargingProfileId` from the tables `chargepoint` and `chargingProfile`.
+1. Create a new smart charging group following the example in `sql/add_group.sql`. The charge point connectors in the same group are assumed to, virtually, share the same circuit. Smart charging is only triggered when all the charge point connectors in a group are in use.
