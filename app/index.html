@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>OCPP Client</title>
+
+        <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
+        <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <script src="data/users.js"></script>
+        <script src="data/chargepoints.js"></script>
+    </head>
+    <body>
+
+        <div class="root" style="padding:0px;margin:0px">
+            <header class="mdc-top-app-bar" style="top:0px;left:0px">
+                <div class="mdc-top-app-bar__row">
+                    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+                        <i class="material-icons mdc-top-app-bar__navigation-icon--unbounded">menu</i>
+                        <span class="mdc-top-app-bar__title">OCPP client simulator</span>
+                    </section>
+                    <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end">
+                    </section>
+                </div>
+            </header>
+
+            <section class="mdc-top-app-bar--fixed-adjust">
+                <!-- React component -->
+                <div id='app_container'></div>
+            </section>
+        </div>
+
+    </body>
+
+    <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+
+    <script type="text/babel" src="js/Card.js"></script>
+    <script type="text/babel" src="js/Button.js"></script>
+    <script type="text/babel" src="js/Station.js"></script>
+    <script type="text/babel" src="js/Logs.js"></script>
+    <script type="text/babel" src="js/App.js"></script>
+</html>

@@ -1,0 +1,1 @@
+grant all on *.* to 'ocpp'@'172.18.0.3' identified by 'ocpp';
