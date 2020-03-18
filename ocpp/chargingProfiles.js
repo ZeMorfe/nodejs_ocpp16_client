@@ -35,12 +35,11 @@ function addProfile({
         p.csChargingProfiles.chargingProfilePurpose === chargingProfilePurpose
     );
 
-    if (currentProfiles.length < 1 || (isNewStackLevel && isNewPurpose)) {
+    if (currentProfiles.length < 1 || (!isNewStackLevel && !isNewPurpose)) {
         setChargingProfiles(
             chargingProfilePurpose,
             [...currentProfiles, newProfile]
         );
-
         console.log('added new profile');
         console.log('profiles', JSON.stringify(getChargingProfiles(), null, 4));
     } else {
@@ -57,7 +56,7 @@ function addProfile({
             profilesUpdated[idx] = newProfile;
 
             setChargingProfiles(chargingProfilePurpose, profilesUpdated);
-
+			console.log('second if');
             console.log('updated profile');
             console.log('profiles', JSON.stringify(getChargingProfiles(), null, 4));
         }
@@ -111,13 +110,15 @@ function getLimitNow({ connectorId, chargingProfiles, cpMaxAmp }) {
     const composite = compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp });
     
     const secondsFromStartOfDay = getSecondsFromStartOfDay();
-
-    const idx = composite.findIndex(p => secondsFromStartOfDay < p.ts);
+	console.log(secondsFromStartOfDay);
+    const idx = composite.findIndex(p => secondsFromStartOfDay <= p.ts);
+	console.log(idx);
     let limit;
-    const hasPrevIdx = idx - 1 >= 0;
+    const hasPrevIdx = idx >= 0;// - 1 >= 0;
     if (idx > -1 && hasPrevIdx) {
         // schedule is in effect now
-        limit = composite[idx - 1].limit;
+		console.log(composite);
+        limit = composite[idx].limit; // - 1].limit;
     } else if (idx === 0) {
         // schedule not started yet
         limit = undefined;
@@ -135,6 +136,7 @@ function getLimitNow({ connectorId, chargingProfiles, cpMaxAmp }) {
  * @param {object} param0 connectorId, charging profiles and max amp
  */
 function compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp }) {
+
     const {
         ChargePointMaxProfile,
         TxDefaultProfile,
@@ -157,11 +159,12 @@ function compositeSchedule({ connectorId, chargingProfiles, cpMaxAmp }) {
         return now >= validFrom && now <= validTo;
     });
     let txProfile = TxProfile.filter(p => {
+		console.log(p.csChargingProfiles);
         let validFrom = new Date(p.csChargingProfiles.validFrom).getTime();
         let validTo = new Date(p.csChargingProfiles.validTo).getTime();
         let now = Date.now();
 
-        return now >= validFrom && now <= validTo;
+        return true; // now >= validFrom && now <= validTo; //assume it's always true for now
     });
 
     let merged;
