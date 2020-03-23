@@ -131,15 +131,15 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
             break;
         case 'MeterValues': {
             // mockup
-            let connectorId = 0;
-            let meterValue = {
+            let connectorId = 1;
+            let meterValue = [{
                 timestamp: new Date().toISOString(),
                 sampledValue: [
                     { value: '10', measurand: 'Energy.Active.Import.Register', unit: 'kWh' },
-                    { value: '18', measurand: 'Temperature', unit: 'Celcius' },
-                    { value: '206', measurand: 'Voltage', unit: 'V' }
+                    //{ value: '18', measurand: 'Temperature', unit: 'Celcius' },
+                    { value: '356', measurand: 'Voltage', unit: 'V' }
                 ]
-            };
+            }];
             payload = { connectorId, meterValue };
         }
             break;
@@ -169,7 +169,7 @@ function getPayload(stationId, [action, payloadFromStation = {}], extras) {
             meter.clearMeter();
 
             payload = {
-                meterStop: kwh,
+                meterStop: parseInt(kwh*1000),
                 timestamp,
                 transactionId,
                 idTag: payloadFromStation.idTag,
